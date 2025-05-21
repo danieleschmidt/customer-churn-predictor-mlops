@@ -1,0 +1,61 @@
+name: CI Tests and PR Training
+
+on:
+  push:
+    branches:
+      - main # Triggers on push to main branch
+  pull_request:
+    branches:
+      - main # Triggers on pull request to main branch
+
+jobs:
+  test: # Existing test job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.8'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run unit tests
+        run: |
+          python -m unittest discover tests
+
+  train_on_pr: # New job for PRs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' # Ensure this job only runs for pull_request events
+    needs: test # Optionally, make it depend on the test job succeeding
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.8'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Install mlflow here if not already effectively installed for the scripts
+          # The requirements.txt should cover it.
+
+      - name: Run Preprocessing
+        run: |
+          python scripts/run_preprocessing.py
+
+      - name: Run Training
+        run: |
+          # Ensure MLFLOW_TRACKING_URI is not set or is set to a local file path
+          # to prevent errors if it tries to connect to a remote server in CI
+          # For this prompt, default local logging of MLflow is fine.
+          python scripts/run_training.py
