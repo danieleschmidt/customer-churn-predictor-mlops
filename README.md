@@ -43,5 +43,13 @@ customer-churn-predictor-mlops/
 ├── .gitignore
 └── README.md
 
+## Processed Input Format
+
+The preprocessing step produces `data/processed/processed_features.csv`.
+Categorical variables are one-hot encoded (e.g. `gender_Female`,
+`gender_Male`), while `SeniorCitizen`, `tenure`, `MonthlyCharges`, and
+`TotalCharges` remain numeric. The `make_prediction` function expects
+input data with these columns.
+
 ## How to Contribute (and test Jules)
 Jules, our Async Development Agent, will assist in building out features, tests, and MLOps components. Please create clear issues.

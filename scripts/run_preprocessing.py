@@ -1,6 +1,11 @@
 import os
+import sys
 import pandas as pd
-from src.preprocess_data import preprocess # Ensure this import works based on your project structure
+
+# Add src directory to Python path so this script works when executed
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from src.preprocess_data import preprocess
 
 def main():
     # Define paths
