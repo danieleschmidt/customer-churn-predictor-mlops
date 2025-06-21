@@ -50,6 +50,16 @@ Categorical variables are one-hot encoded (e.g. `gender_Female`,
 `gender_Male`), while `SeniorCitizen`, `tenure`, `MonthlyCharges`, and
 `TotalCharges` remain numeric. The `make_prediction` function expects
 input data with these columns.
+Processed datasets are committed to version control in the `data/processed/`
+folder so that experiments can be reproduced easily.
+## Monitoring and Retraining
+Run `python -m src.monitor_performance` to evaluate the current model on the processed dataset. If accuracy drops below 0.8 the model will automatically retrain.
+
+## Evaluating a Trained Model
+Use `python scripts/run_evaluation.py` to compute accuracy and F1-score of the current model on the processed dataset. Pass `--output metrics.json` to save the metrics to a JSON file.
+
+## Batch Prediction
+Use `python scripts/run_prediction.py <input_csv> --output_csv predictions.csv` to generate churn predictions for a CSV file of processed features. The script adds `prediction` and `probability` columns and saves the result to the specified output file.
 
 ## How to Contribute (and test Jules)
 Jules, our Async Development Agent, will assist in building out features, tests, and MLOps components. Please create clear issues.
