@@ -10,7 +10,7 @@ This checklist outlines steps to develop and maintain the customer churn predict
 ## Data Preparation
 - [x] Review `data/raw/customer_data.csv` for missing or inconsistent values
 - [x] Run `scripts/run_preprocessing.py` to generate processed datasets
-- [ ] Commit processed data to version control or data versioning tool (e.g., DVC)
+- [x] Commit processed data to version control or data versioning tool (e.g., DVC)
 
 ## Modeling
 - [x] Train an initial model using `scripts/run_training.py`
@@ -32,6 +32,6 @@ This checklist outlines steps to develop and maintain the customer churn predict
 - [x] Document the expected input format after preprocessing
 
 ## Maintenance
-- [ ] Periodically update dependencies in `requirements.txt`
-- [ ] Monitor model performance and retrain with fresh data when necessary
+- [x] Periodically update dependencies in `requirements.txt`
+- [x] Monitor model performance and retrain with fresh data when necessary
 
