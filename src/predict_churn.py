@@ -153,19 +153,7 @@ if __name__ == '__main__':
                 print("Please run scripts/run_preprocessing.py first.")
 
         else:
-            print(f"Cannot run example: Processed features file not found at {processed_features_path}.")
+            print(
+                f"Cannot run example: Processed features file not found at {processed_features_path}."
+            )
             print("Please run scripts/run_preprocessing.py to generate it.")
-            print("Falling back to a very basic example dict (likely to fail if features don't match model):")
-            # This basic example is highly unlikely to match the actual model features
-            # after one-hot encoding in a real scenario.
-            basic_example_input = {
-                'gender_Female': 1, 'gender_Male': 0, 'SeniorCitizen': 0, 'Partner_Yes': 1, 'Partner_No': 0,
-                'Dependents_No': 1, 'Dependents_Yes': 0, 'tenure': 10, 'PhoneService_Yes': 1, 'PhoneService_No': 0,
-                # ... many more one-hot encoded features would be here ...
-                'MonthlyCharges': 70.0, 'TotalCharges': 700.0
-            }
-            # It's better to inform the user that this basic example is insufficient.
-            print("The basic_example_input is a placeholder and likely does not match your model's required features.")
-            print("For a meaningful test, ensure processed_features.csv exists or provide a dict with correct one-hot encoded column names.")
-
-```

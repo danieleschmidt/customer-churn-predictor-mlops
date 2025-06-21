@@ -172,3 +172,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+mlruns/
+
+# Ignore processed data and trained models
+data/processed/
+models/
