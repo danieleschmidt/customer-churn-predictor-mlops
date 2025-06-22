@@ -6,6 +6,9 @@ import mlflow
 import mlflow.sklearn
 import joblib
 import os
+import json
+
+from .constants import MODEL_PATH, FEATURE_COLUMNS_PATH, RUN_ID_PATH, MODEL_ARTIFACT_PATH
 
 def train_churn_model(X_path, y_path):
     """
@@ -56,17 +59,26 @@ def train_churn_model(X_path, y_path):
 
         # Log model
         print("Logging model to MLflow...")
-        mlflow.sklearn.log_model(model, "churn_model")
+        mlflow.sklearn.log_model(model, MODEL_ARTIFACT_PATH)
 
         # Save the trained model
-        model_dir = 'models'
+        model_dir = os.path.dirname(MODEL_PATH)
         os.makedirs(model_dir, exist_ok=True)
-        model_path = os.path.join(model_dir, 'churn_model.joblib')
-        print(f"Saving trained model to {model_path}...")
-        joblib.dump(model, model_path)
-        
+        print(f"Saving trained model to {MODEL_PATH}...")
+        joblib.dump(model, MODEL_PATH)
+
+        # Save feature column order for prediction
+        with open(FEATURE_COLUMNS_PATH, 'w') as f:
+            json.dump(X.columns.tolist(), f)
+        mlflow.log_artifact(FEATURE_COLUMNS_PATH)
+
+        # Persist the MLflow run ID so prediction utilities can retrieve
+        # artifacts later if needed.
+        with open(RUN_ID_PATH, 'w') as f:
+            f.write(run_id)
+
         print("Model training and MLflow logging complete.")
-        return model_path, run_id
+        return MODEL_PATH, run_id
 
 if __name__ == '__main__':
     # This part is for direct script execution testing, if needed.

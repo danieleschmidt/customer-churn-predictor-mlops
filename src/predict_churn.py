@@ -2,6 +2,16 @@ import joblib
 import pandas as pd
 import numpy as np
 import os
+import json
+import mlflow
+
+from .constants import (
+    MODEL_PATH,
+    FEATURE_COLUMNS_PATH,
+    RUN_ID_PATH,
+    RUN_ID_ENV_VAR,
+    MODEL_ARTIFACT_PATH,
+)
 
 # Assume the model and preprocessor/column info might be needed.
 # For this prompt, we only load the model.
@@ -12,7 +22,6 @@ import os
 # in the post-processed, numerical format expected by the model.
 # A future improvement would be to save and load the preprocessor pipeline.
 
-MODEL_PATH = 'models/churn_model.joblib'
 
 # It's good practice to also save the columns used during training
 # to ensure the input for prediction matches.
@@ -20,30 +29,93 @@ MODEL_PATH = 'models/churn_model.joblib'
 # For now, we'll assume this step was done during training or is handled
 # by the caller providing data in the correct one-hot encoded format.
 
-def make_prediction(input_data_dict):
+def _get_run_id():
+    """Return the MLflow run ID from env var or file if available."""
+    run_id = os.environ.get(RUN_ID_ENV_VAR)
+    if run_id:
+        return run_id
+    if os.path.exists(RUN_ID_PATH):
+        with open(RUN_ID_PATH) as f:
+            return f.read().strip()
+    return None
+
+def make_prediction(input_data_dict, run_id=None):
     """
     Loads the trained model and makes a churn prediction.
 
     Args:
         input_data_dict (dict): A dictionary representing a single customer's
-                                features, in the pre-processed format expected
-                                by the model (i.e., after one-hot encoding).
-                                Example: {'gender_Female': 0, 'gender_Male': 1, ... , 'TotalCharges': 500}
+            features in the pre-processed format expected by the model
+            (i.e., after one-hot encoding). Example: {'gender_Female': 0,
+            'gender_Male': 1, ... , 'TotalCharges': 500}
+        run_id (str, optional): MLflow run ID to download artifacts from.
+            Defaults to None, in which case the value is loaded from
+            ``MLFLOW_RUN_ID`` or ``models/mlflow_run_id.txt``.
 
     Returns:
         tuple: (prediction (0 or 1), probability (float))
                Returns (None, None) if model not found or error occurs.
+
+    Notes:
+        If ``models/churn_model.joblib`` or ``models/feature_columns.json`` are
+        missing, this function will attempt to download them from MLflow using
+        the provided ``run_id``. If ``run_id`` is ``None``, the value is
+        resolved from the ``MLFLOW_RUN_ID`` environment variable or the
+        ``models/mlflow_run_id.txt`` file.
     """
-    if not os.path.exists(MODEL_PATH):
-        print(f"Error: Model not found at {MODEL_PATH}")
+    model = None
+    if run_id is None:
+        run_id = _get_run_id()
+    if os.path.exists(MODEL_PATH):
+        try:
+            print(f"Loading model from {MODEL_PATH}...")
+            model = joblib.load(MODEL_PATH)
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            return None, None
+    elif run_id:
+        try:
+            print(f"Downloading model from MLflow run {run_id}...")
+            model = mlflow.sklearn.load_model(f"runs:/{run_id}/{MODEL_ARTIFACT_PATH}")
+            os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+            joblib.dump(model, MODEL_PATH)
+            print(f"Saved downloaded model to {MODEL_PATH}")
+        except Exception as e:
+            print(f"Error downloading model from MLflow: {e}")
+            return None, None
+    else:
+        print(
+            f"Error: Model not found at {MODEL_PATH} and no run ID available via {RUN_ID_PATH} or {RUN_ID_ENV_VAR}"
+        )
         return None, None
 
-    try:
-        print(f"Loading model from {MODEL_PATH}...")
-        model = joblib.load(MODEL_PATH)
-    except Exception as e:
-        print(f"Error loading model: {e}")
-        return None, None
+    columns = None
+    if os.path.exists(FEATURE_COLUMNS_PATH):
+        try:
+            with open(FEATURE_COLUMNS_PATH) as f:
+                columns = json.load(f)
+        except Exception as e:
+            print(f"Error loading feature columns: {e}")
+            columns = None
+
+    if columns is None and run_id:
+        try:
+            dl_path = mlflow.artifacts.download_artifacts(
+                run_id=run_id, artifact_path='feature_columns.json'
+            )
+            if os.path.isdir(dl_path):
+                path = os.path.join(dl_path, 'feature_columns.json')
+            else:
+                path = dl_path
+            with open(path) as f:
+                columns = json.load(f)
+            # Persist for future predictions
+            os.makedirs(os.path.dirname(FEATURE_COLUMNS_PATH), exist_ok=True)
+            with open(FEATURE_COLUMNS_PATH, 'w') as out_f:
+                json.dump(columns, out_f)
+        except Exception as e:
+            print(f"Error downloading feature columns from MLflow: {e}")
+            columns = None
 
     try:
         # Convert the input dictionary to a DataFrame.
@@ -65,9 +137,10 @@ def make_prediction(input_data_dict):
         # the `ColumnTransformer` used in preprocessing or at least the list of
         # `X_processed_df.columns` from `preprocess_data.py`.
 
-        # For now, let's create a DataFrame directly from the dict.
-        # This assumes input_data_dict has the correct features in a flat structure.
-        input_df = pd.DataFrame([input_data_dict])
+        if columns:
+            input_df = pd.DataFrame([input_data_dict], columns=columns).fillna(0)
+        else:
+            input_df = pd.DataFrame([input_data_dict])
         
         # A more robust way, if you saved `X_processed_df.columns` during/after preprocessing:
         # Load `X_train_columns.json` (example name)
