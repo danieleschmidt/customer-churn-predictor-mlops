@@ -35,6 +35,38 @@ class TestRunEvaluation(unittest.TestCase):
         self.assertAlmostEqual(data['accuracy'], acc)
         self.assertAlmostEqual(data['f1_score'], f1)
 
+    def test_run_evaluation_downloads_model(self):
+        model_path, run_id = train_churn_model(self.X_path, self.y_path)
+        os.remove(MODEL_PATH)
+        output_file = os.path.join(self.tmpdir, 'metrics_missing.json')
+        acc, f1 = run_evaluation(MODEL_PATH, self.X_path, self.y_path, output_file)
+        self.assertTrue(os.path.exists(MODEL_PATH))
+        self.assertTrue(os.path.exists(output_file))
+
+    def test_run_evaluation_uses_env_run_id(self):
+        model_path, run_id = train_churn_model(self.X_path, self.y_path)
+        os.remove(MODEL_PATH)
+        if os.path.exists('models/mlflow_run_id.txt'):
+            os.remove('models/mlflow_run_id.txt')
+        os.environ['MLFLOW_RUN_ID'] = run_id
+        try:
+            output_file = os.path.join(self.tmpdir, 'metrics_env.json')
+            acc, f1 = run_evaluation(MODEL_PATH, self.X_path, self.y_path, output_file)
+            self.assertTrue(os.path.exists(MODEL_PATH))
+            self.assertTrue(os.path.exists(output_file))
+        finally:
+            os.environ.pop('MLFLOW_RUN_ID', None)
+
+    def test_run_evaluation_run_id_argument(self):
+        model_path, run_id = train_churn_model(self.X_path, self.y_path)
+        os.remove(MODEL_PATH)
+        if os.path.exists('models/mlflow_run_id.txt'):
+            os.remove('models/mlflow_run_id.txt')
+        output_file = os.path.join(self.tmpdir, 'metrics_arg.json')
+        acc, f1 = run_evaluation(MODEL_PATH, self.X_path, self.y_path, output_file, run_id=run_id)
+        self.assertTrue(os.path.exists(MODEL_PATH))
+        self.assertTrue(os.path.exists(output_file))
+
 
 if __name__ == '__main__':
     unittest.main()

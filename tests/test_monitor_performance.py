@@ -37,5 +37,56 @@ class TestMonitorPerformance(unittest.TestCase):
         monitor_and_retrain()
         self.assertTrue(os.path.exists(MODEL_PATH))
 
+    def test_evaluate_model_downloads_model(self):
+        model_path, run_id = train_churn_model(self.X_path, self.y_path)
+        os.remove(MODEL_PATH)
+        acc, f1 = evaluate_model()
+        self.assertTrue(os.path.exists(MODEL_PATH))
+        self.assertIsInstance(acc, float)
+        self.assertIsInstance(f1, float)
+
+    def test_evaluate_model_uses_env_run_id(self):
+        model_path, run_id = train_churn_model(self.X_path, self.y_path)
+        os.remove(MODEL_PATH)
+        if os.path.exists('models/mlflow_run_id.txt'):
+            os.remove('models/mlflow_run_id.txt')
+        os.environ['MLFLOW_RUN_ID'] = run_id
+        try:
+            acc, f1 = evaluate_model()
+            self.assertTrue(os.path.exists(MODEL_PATH))
+            self.assertIsInstance(acc, float)
+            self.assertIsInstance(f1, float)
+        finally:
+            os.environ.pop('MLFLOW_RUN_ID', None)
+
+    def test_evaluate_model_run_id_argument(self):
+        model_path, run_id = train_churn_model(self.X_path, self.y_path)
+        os.remove(MODEL_PATH)
+        if os.path.exists('models/mlflow_run_id.txt'):
+            os.remove('models/mlflow_run_id.txt')
+        acc, f1 = evaluate_model(run_id=run_id)
+        self.assertTrue(os.path.exists(MODEL_PATH))
+        self.assertIsInstance(acc, float)
+        self.assertIsInstance(f1, float)
+
+    def test_evaluate_model_logs_metrics(self):
+        train_churn_model(self.X_path, self.y_path)
+        evaluate_model()
+        exp = mlflow.get_experiment_by_name("Default")
+        client = mlflow.tracking.MlflowClient()
+        runs = client.search_runs(exp.experiment_id, order_by=["attribute.start_time DESC"], max_results=1)
+        latest_run = runs[0]
+        self.assertIn("accuracy", latest_run.data.metrics)
+        self.assertIn("f1_score", latest_run.data.metrics)
+
+    def test_monitor_retrain_threshold_env(self):
+        train_churn_model(self.X_path, self.y_path)
+        os.environ['CHURN_THRESHOLD'] = '1.1'  # force retraining since accuracy < 1.1
+        try:
+            monitor_and_retrain()
+            self.assertTrue(os.path.exists(MODEL_PATH))
+        finally:
+            os.environ.pop('CHURN_THRESHOLD', None)
+
 if __name__ == '__main__':
     unittest.main()

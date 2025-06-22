@@ -52,14 +52,37 @@ Categorical variables are one-hot encoded (e.g. `gender_Female`,
 input data with these columns.
 Processed datasets are committed to version control in the `data/processed/`
 folder so that experiments can be reproduced easily.
+
+## Preprocessing the Data
+Run `python scripts/run_preprocessing.py` to generate the processed feature and
+target CSV files in the `data/processed/` directory. This step cleans the raw
+dataset and performs one-hot encoding so that training and prediction scripts
+use consistent inputs.
+
+## Training the Model
+Run `python scripts/run_training.py` to train a churn model using the processed
+datasets. The script expects `data/processed/processed_features.csv` and
+`data/processed/processed_target.csv` by default, but you can override these
+paths with `--X_path` and `--y_path`.
 ## Monitoring and Retraining
-Run `python -m src.monitor_performance` to evaluate the current model on the processed dataset. If accuracy drops below 0.8 the model will automatically retrain.
+Run `python -m src.monitor_performance` to evaluate the current model on the processed dataset. If accuracy drops below 0.8 the model will automatically retrain. A convenience wrapper is also available via `python scripts/run_monitor.py`.
+The accuracy threshold can be overridden with the `CHURN_THRESHOLD` environment variable or the `--threshold` argument of `run_monitor.py`.
 
 ## Evaluating a Trained Model
 Use `python scripts/run_evaluation.py` to compute accuracy and F1-score of the current model on the processed dataset. Pass `--output metrics.json` to save the metrics to a JSON file.
+If the model file is missing, the evaluation script will automatically download it from MLflow using the saved run ID (or the `MLFLOW_RUN_ID` environment variable). You can also specify the run directly with `--run_id <RUN_ID>`.
+The evaluation step also logs these metrics to MLflow so you can monitor performance over time.
 
 ## Batch Prediction
 Use `python scripts/run_prediction.py <input_csv> --output_csv predictions.csv` to generate churn predictions for a CSV file of processed features. The script adds `prediction` and `probability` columns and saves the result to the specified output file.
+
+During training, the feature column order is saved to `models/feature_columns.json` and logged to MLflow as an artifact. The prediction utilities automatically load this file so that incoming data can be aligned to the expected columns. If a column is missing in the input, it will be filled with zero during prediction.
+The training step also records the MLflow run ID in `models/mlflow_run_id.txt`. If `feature_columns.json` is missing, the prediction code uses this run ID to download the artifact from MLflow.
+If `models/churn_model.joblib` is missing, the prediction code will also use the saved run ID to download the trained model from MLflow automatically.
+The `run_prediction.py` script relies on the same mechanism, so batch predictions work even if the local model file is absent as long as the run ID file is present. You can also set the `MLFLOW_RUN_ID` environment variable or pass `--run_id <RUN_ID>` to specify the run ID without the file.
+
+## End-to-End Pipeline
+Run `python scripts/run_pipeline.py` to execute preprocessing, training, and evaluation in one step. This recreates the processed datasets, trains the model, evaluates it, and prints the resulting metrics.
 
 ## How to Contribute (and test Jules)
 Jules, our Async Development Agent, will assist in building out features, tests, and MLOps components. Please create clear issues.
