@@ -15,14 +15,27 @@ def run_evaluation(
     y_path=PROCESSED_TARGET_PATH,
     output=None,
     run_id=None,
+    *,
+    detailed: bool = False,
 ):
     """Evaluate the model and optionally save metrics to a JSON file."""
-    accuracy, f1 = evaluate_model(model_path, X_path, y_path, run_id=run_id)
+    result = evaluate_model(
+        model_path, X_path, y_path, run_id=run_id, detailed=detailed
+    )
+    if detailed:
+        accuracy, f1, report = result
+    else:
+        accuracy, f1 = result
+        report = None
     if output:
         metrics = {'accuracy': accuracy, 'f1_score': f1}
+        if report is not None:
+            metrics['classification_report'] = report
         with open(output, 'w') as f:
             json.dump(metrics, f)
         print(f"Saved metrics to {output}")
+    if detailed:
+        return accuracy, f1, report
     return accuracy, f1
 
 
@@ -33,11 +46,22 @@ def main():
     parser.add_argument('--y_path', default=PROCESSED_TARGET_PATH, help='Processed target CSV')
     parser.add_argument('--output', help='Optional JSON file to store metrics')
     parser.add_argument('--run_id', help='MLflow run ID to download artifacts')
+    parser.add_argument('--detailed', action='store_true', help='Include classification report')
     args = parser.parse_args()
 
-    accuracy, f1 = run_evaluation(
-        args.model_path, args.X_path, args.y_path, args.output, run_id=args.run_id
+    result = run_evaluation(
+        args.model_path,
+        args.X_path,
+        args.y_path,
+        args.output,
+        run_id=args.run_id,
+        detailed=args.detailed,
     )
+    if args.detailed:
+        accuracy, f1, report = result
+        print(json.dumps(report, indent=2))
+    else:
+        accuracy, f1 = result
     print(f"Accuracy: {accuracy:.4f}")
     print(f"F1-score: {f1:.4f}")
 

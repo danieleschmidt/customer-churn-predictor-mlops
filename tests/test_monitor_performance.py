@@ -88,5 +88,24 @@ class TestMonitorPerformance(unittest.TestCase):
         finally:
             os.environ.pop('CHURN_THRESHOLD', None)
 
+    def test_monitor_custom_paths(self):
+        from unittest.mock import patch
+
+        with patch('src.monitor_performance.evaluate_model', return_value=(0.5, 0.5)) as mock_eval, patch(
+            'src.monitor_performance.train_churn_model'
+        ) as mock_train:
+            monitor_and_retrain(
+                threshold=0.6,
+                X_path='custom_X.csv',
+                y_path='custom_y.csv',
+            )
+            mock_eval.assert_called_once_with(
+                MODEL_PATH, 'custom_X.csv', 'custom_y.csv'
+            )
+            mock_train.assert_called_once()
+            args = mock_train.call_args.args
+            self.assertEqual(args[0], 'custom_X.csv')
+            self.assertEqual(args[1], 'custom_y.csv')
+
 if __name__ == '__main__':
     unittest.main()

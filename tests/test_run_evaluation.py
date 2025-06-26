@@ -67,6 +67,22 @@ class TestRunEvaluation(unittest.TestCase):
         self.assertTrue(os.path.exists(MODEL_PATH))
         self.assertTrue(os.path.exists(output_file))
 
+    def test_run_evaluation_detailed(self):
+        train_churn_model(self.X_path, self.y_path)
+        output_file = os.path.join(self.tmpdir, 'metrics_detailed.json')
+        acc, f1, report = run_evaluation(
+            MODEL_PATH,
+            self.X_path,
+            self.y_path,
+            output_file,
+            detailed=True,
+        )
+        self.assertTrue(os.path.exists(output_file))
+        self.assertIsInstance(report, dict)
+        with open(output_file) as f:
+            data = json.load(f)
+        self.assertIn('classification_report', data)
+
 
 if __name__ == '__main__':
     unittest.main()

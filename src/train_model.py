@@ -10,13 +10,45 @@ import json
 
 from .constants import MODEL_PATH, FEATURE_COLUMNS_PATH, RUN_ID_PATH, MODEL_ARTIFACT_PATH
 
-def train_churn_model(X_path, y_path):
-    """
-    Trains a churn prediction model, logs it with MLflow, and saves it.
+def train_churn_model(
+    X_path,
+    y_path,
+    *,
+    solver: str = "liblinear",
+    C: float = 1.0,
+    penalty: str = "l2",
+    random_state: int = 42,
+    max_iter: int = 100,
+    test_size: float = 0.2,
+):
+    """Train a churn prediction model and log it with MLflow.
 
-    Args:
-        X_path (str): Path to the processed features CSV file.
-        y_path (str): Path to the processed target CSV file.
+    Parameters
+    ----------
+    X_path : str
+        Path to the processed features CSV file.
+    y_path : str
+        Path to the processed target CSV file.
+    solver : str, optional
+        Solver to use for :class:`~sklearn.linear_model.LogisticRegression`,
+        by default ``"liblinear"``.
+    C : float, optional
+        Inverse of regularization strength, by default ``1.0``.
+    penalty : str, optional
+        Penalty (regularization) to use. Defaults to ``"l2"``.
+    random_state : int, optional
+        Random seed used for both the train/test split and the model, by
+        default ``42``.
+    max_iter : int, optional
+        Maximum number of iterations for optimization, by default ``100``.
+    test_size : float, optional
+        Proportion of the dataset to include in the test split, by default
+        ``0.2``.
+
+    Returns
+    -------
+    tuple[str, str]
+        The path to the saved model and the MLflow run ID.
     """
     print(f"Loading data from {X_path} and {y_path}...")
     X = pd.read_csv(X_path)
@@ -24,7 +56,13 @@ def train_churn_model(X_path, y_path):
 
     # Split data
     print("Splitting data into training and testing sets...")
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=test_size,
+        random_state=random_state,
+        stratify=y,
+    )
 
     # Initialize MLflow run
     with mlflow.start_run() as run:
@@ -33,7 +71,13 @@ def train_churn_model(X_path, y_path):
 
         # Initialize and train Logistic Regression model
         print("Training Logistic Regression model...")
-        model = LogisticRegression(solver='liblinear', C=1.0, random_state=42) # Example parameters
+        model = LogisticRegression(
+            solver=solver,
+            C=C,
+            penalty=penalty,
+            random_state=random_state,
+            max_iter=max_iter,
+        )
         model.fit(X_train, y_train)
 
         # Make predictions
@@ -50,7 +94,10 @@ def train_churn_model(X_path, y_path):
         print("Logging model parameters to MLflow...")
         mlflow.log_param("solver", model.get_params()['solver'])
         mlflow.log_param("C", model.get_params()['C'])
+        mlflow.log_param("penalty", model.get_params()['penalty'])
         mlflow.log_param("random_state", model.get_params()['random_state'])
+        mlflow.log_param("max_iter", model.get_params()['max_iter'])
+        mlflow.log_param("test_size", test_size)
 
         # Log metrics
         print("Logging model metrics to MLflow...")

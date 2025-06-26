@@ -2,7 +2,8 @@ import os
 import joblib
 import pandas as pd
 import mlflow
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, classification_report
+import json
 
 from src.train_model import train_churn_model
 from src.predict_churn import _get_run_id
@@ -23,8 +24,23 @@ def evaluate_model(
     X_path=PROCESSED_FEATURES_PATH,
     y_path=PROCESSED_TARGET_PATH,
     run_id=None,
+    *,
+    detailed: bool = False,
 ):
-    """Evaluate the existing model on the processed dataset."""
+    """Evaluate the existing model on the processed dataset.
+
+    Parameters
+    ----------
+    model_path, X_path, y_path : str
+        Locations of the model and processed datasets.
+    run_id : str, optional
+        If provided, artifacts will be downloaded from MLflow when the model is
+        missing locally.
+    detailed : bool, optional
+        If ``True`` return a classification report in addition to accuracy and
+        F1-score. The report is also logged to MLflow as an artifact.
+        Defaults to ``False``.
+    """
     if run_id is None:
         run_id = _get_run_id()
     model = None
@@ -49,17 +65,54 @@ def evaluate_model(
     y_pred = model.predict(X)
     accuracy = accuracy_score(y, y_pred)
     f1 = f1_score(y, y_pred)
+    report = None
+    if detailed:
+        report = classification_report(y, y_pred, output_dict=True)
 
     # Log evaluation metrics to MLflow for tracking
     with mlflow.start_run(run_name="evaluation"):
         mlflow.log_metric("accuracy", accuracy)
         mlflow.log_metric("f1_score", f1)
+        if detailed and report is not None:
+            tmp_path = "classification_report.json"
+            with open(tmp_path, "w") as f:
+                json.dump(report, f)
+            mlflow.log_artifact(tmp_path)
+            os.remove(tmp_path)
 
+    if detailed:
+        return accuracy, f1, report
     return accuracy, f1
 
 
-def monitor_and_retrain(threshold: float | None = None):
-    """Monitor performance and retrain the model if accuracy falls below threshold."""
+def monitor_and_retrain(
+    threshold: float | None = None,
+    *,
+    X_path: str = PROCESSED_FEATURES_PATH,
+    y_path: str = PROCESSED_TARGET_PATH,
+    solver: str = "liblinear",
+    C: float = 1.0,
+    penalty: str = "l2",
+    random_state: int = 42,
+    max_iter: int = 100,
+    test_size: float = 0.2,
+):
+    """Monitor performance and retrain the model if accuracy falls below threshold.
+
+    Parameters
+    ----------
+    threshold : float, optional
+        Accuracy threshold below which the model will be retrained.
+        Defaults to ``DEFAULT_THRESHOLD`` or ``CHURN_THRESHOLD`` environment
+        variable.
+    X_path, y_path : str, optional
+        Locations of the processed feature and target datasets.
+        Defaults to :data:`PROCESSED_FEATURES_PATH` and
+        :data:`PROCESSED_TARGET_PATH`.
+    solver, C, penalty, random_state, max_iter, test_size :
+        Same as in :func:`~src.train_model.train_churn_model` and forwarded when
+        retraining is triggered.
+    """
     if threshold is None:
         # Check environment variable first
         env_val = os.environ.get(THRESHOLD_ENV_VAR)
@@ -73,19 +126,41 @@ def monitor_and_retrain(threshold: float | None = None):
             threshold = THRESHOLD_ACCURACY
 
     try:
-        accuracy, f1 = evaluate_model()
+        accuracy, f1 = evaluate_model(
+            MODEL_PATH,
+            X_path,
+            y_path,
+        )
         print(f"Current model accuracy: {accuracy:.4f}, F1-score: {f1:.4f}")
     except FileNotFoundError as e:
         print(e)
         print("Training model from scratch...")
-        train_churn_model(PROCESSED_FEATURES_PATH, PROCESSED_TARGET_PATH)
+        train_churn_model(
+            X_path,
+            y_path,
+            solver=solver,
+            C=C,
+            penalty=penalty,
+            random_state=random_state,
+            max_iter=max_iter,
+            test_size=test_size,
+        )
         return
 
     if accuracy < threshold:
         print(
             f"Accuracy {accuracy:.4f} is below threshold {threshold}. Retraining model..."
         )
-        train_churn_model(PROCESSED_FEATURES_PATH, PROCESSED_TARGET_PATH)
+        train_churn_model(
+            X_path,
+            y_path,
+            solver=solver,
+            C=C,
+            penalty=penalty,
+            random_state=random_state,
+            max_iter=max_iter,
+            test_size=test_size,
+        )
     else:
         print("Model performance is acceptable. No retraining required.")
 

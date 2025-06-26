@@ -54,5 +54,39 @@ class TestTrainModel(unittest.TestCase):
         artifact_path = os.path.join(self.mlflow_dir, exp.experiment_id, run_id, 'artifacts', 'feature_columns.json')
         self.assertTrue(os.path.exists(artifact_path))
 
+    def test_train_model_custom_parameters(self):
+        model_path, run_id = train_churn_model(
+            self.X_path,
+            self.y_path,
+            solver="liblinear",
+            C=0.5,
+            penalty="l1",
+            random_state=99,
+            max_iter=300,
+            test_size=0.25,
+        )
+        model = joblib.load(model_path)
+        params = model.get_params()
+        self.assertEqual(params["solver"], "liblinear")
+        self.assertAlmostEqual(params["C"], 0.5)
+        self.assertEqual(params["penalty"], "l1")
+        self.assertEqual(params["random_state"], 99)
+        self.assertEqual(params["max_iter"], 300)
+
+    def test_split_params_passed(self):
+        from unittest.mock import patch
+        from sklearn.model_selection import train_test_split as real_split
+
+        with patch("src.train_model.train_test_split", wraps=real_split) as mock_split:
+            train_churn_model(
+                self.X_path,
+                self.y_path,
+                random_state=123,
+                test_size=0.3,
+            )
+            mock_split.assert_called_once()
+            self.assertEqual(mock_split.call_args.kwargs["random_state"], 123)
+            self.assertAlmostEqual(mock_split.call_args.kwargs["test_size"], 0.3)
+
 if __name__ == '__main__':
     unittest.main()
