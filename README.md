@@ -63,15 +63,32 @@ use consistent inputs.
 Run `python scripts/run_training.py` to train a churn model using the processed
 datasets. The script expects `data/processed/processed_features.csv` and
 `data/processed/processed_target.csv` by default, but you can override these
-paths with `--X_path` and `--y_path`.
+paths with `--X_path` and `--y_path`.  Additional logistic regression
+hyperparameters are exposed as CLI flags, for example:
+
+```bash
+python scripts/run_training.py \
+  --solver saga --C 0.5 --penalty l1 --random_state 7 --max_iter 200 --test_size 0.3
+```
 ## Monitoring and Retraining
 Run `python -m src.monitor_performance` to evaluate the current model on the processed dataset. If accuracy drops below 0.8 the model will automatically retrain. A convenience wrapper is also available via `python scripts/run_monitor.py`.
-The accuracy threshold can be overridden with the `CHURN_THRESHOLD` environment variable or the `--threshold` argument of `run_monitor.py`.
+The accuracy threshold can be overridden with the `CHURN_THRESHOLD` environment variable or the `--threshold` argument of `run_monitor.py`. The same hyperparameters as `run_training.py` can also be supplied when retraining through this script. You can also override the processed data paths with `--X_path` and `--y_path`:
+
+```bash
+python scripts/run_monitor.py \
+  --threshold 0.85 \
+  --solver saga --C 0.8 --penalty l1 --random_state 21 --max_iter 250 --test_size 0.25
+```
 
 ## Evaluating a Trained Model
-Use `python scripts/run_evaluation.py` to compute accuracy and F1-score of the current model on the processed dataset. Pass `--output metrics.json` to save the metrics to a JSON file.
+Use `python scripts/run_evaluation.py` to compute accuracy and F1-score of the current model on the processed dataset. Pass `--output metrics.json` to save the metrics to a JSON file. Include the `--detailed` flag to also generate a full classification report.
 If the model file is missing, the evaluation script will automatically download it from MLflow using the saved run ID (or the `MLFLOW_RUN_ID` environment variable). You can also specify the run directly with `--run_id <RUN_ID>`.
 The evaluation step also logs these metrics to MLflow so you can monitor performance over time.
+For a more comprehensive breakdown of precision and recall per class, run:
+
+```bash
+python scripts/run_evaluation.py --detailed --output detailed_metrics.json
+```
 
 ## Batch Prediction
 Use `python scripts/run_prediction.py <input_csv> --output_csv predictions.csv` to generate churn predictions for a CSV file of processed features. The script adds `prediction` and `probability` columns and saves the result to the specified output file.
@@ -83,6 +100,12 @@ The `run_prediction.py` script relies on the same mechanism, so batch prediction
 
 ## End-to-End Pipeline
 Run `python scripts/run_pipeline.py` to execute preprocessing, training, and evaluation in one step. This recreates the processed datasets, trains the model, evaluates it, and prints the resulting metrics.
+You can pass the same hyperparameters used by `run_training.py` to experiment with different model settings:
+
+```bash
+python scripts/run_pipeline.py \
+  --solver saga --C 0.5 --penalty l1 --random_state 7 --max_iter 200 --test_size 0.3
+```
 
 ## How to Contribute (and test Jules)
 Jules, our Async Development Agent, will assist in building out features, tests, and MLOps components. Please create clear issues.
