@@ -1,18 +1,13 @@
 import argparse
-import sys
 import os
 
-# Add src directory to Python path to allow direct import of train_model
-# This is useful if running the script directly from the 'scripts' directory or root
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 from src.train_model import train_churn_model  # Ensure this import works
-from src.constants import PROCESSED_FEATURES_PATH, PROCESSED_TARGET_PATH
+from src.config import load_config
 
 
 def run_training(
-    X_path: str = PROCESSED_FEATURES_PATH,
-    y_path: str = PROCESSED_TARGET_PATH,
+    X_path: str | None = None,
+    y_path: str | None = None,
     *,
     solver: str = "liblinear",
     C: float = 1.0,
@@ -46,6 +41,10 @@ def run_training(
     tuple[str, str]
         The path to the saved model and the MLflow run ID.
     """
+    cfg = load_config()
+    X_path = X_path or cfg["data"]["processed_features"]
+    y_path = y_path or cfg["data"]["processed_target"]
+
     print("Starting model training script...")
     if not (os.path.exists(X_path) and os.path.exists(y_path)):
         print(f"Error: Processed data not found at {X_path} or {y_path}.")
@@ -69,16 +68,18 @@ def run_training(
     print(f"MLflow Run ID: {run_id}")
     return model_path, run_id
 
+
 def main():
     parser = argparse.ArgumentParser(description="Train churn model")
+    cfg = load_config()
     parser.add_argument(
         "--X_path",
-        default=PROCESSED_FEATURES_PATH,
+        default=cfg["data"]["processed_features"],
         help="Path to processed features CSV",
     )
     parser.add_argument(
         "--y_path",
-        default=PROCESSED_TARGET_PATH,
+        default=cfg["data"]["processed_target"],
         help="Path to processed target CSV",
     )
     parser.add_argument(
@@ -128,5 +129,6 @@ def main():
         test_size=args.test_size,
     )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

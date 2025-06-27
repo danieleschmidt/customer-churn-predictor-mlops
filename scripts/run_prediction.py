@@ -1,12 +1,9 @@
 import argparse
 import os
-import sys
 import pandas as pd
 
-# Ensure src directory is on the path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 from src.predict_churn import make_prediction
+from src.config import load_config
 
 
 def run_predictions(input_csv: str, output_csv: str, run_id: str | None = None):
@@ -23,20 +20,32 @@ def run_predictions(input_csv: str, output_csv: str, run_id: str | None = None):
         predictions.append(pred)
         probabilities.append(prob)
 
-    df['prediction'] = predictions
-    df['probability'] = probabilities
+    df["prediction"] = predictions
+    df["probability"] = probabilities
     df.to_csv(output_csv, index=False)
     print(f"Saved predictions to {output_csv}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run churn predictions on a CSV file of processed features.")
-    parser.add_argument('input_csv', help='Path to processed features CSV')
-    parser.add_argument('--output_csv', default='predictions.csv', help='Where to save predictions')
-    parser.add_argument('--run_id', help='MLflow run ID to download artifacts')
+    parser = argparse.ArgumentParser(
+        description="Run churn predictions on a CSV file of processed features."
+    )
+    cfg = load_config()
+    parser.add_argument(
+        "input_csv",
+        nargs="?",
+        default=cfg["data"]["processed_features"],
+        help="Path to processed features CSV",
+    )
+    parser.add_argument(
+        "--output_csv",
+        default="predictions.csv",
+        help="Where to save predictions",
+    )
+    parser.add_argument("--run_id", help="MLflow run ID to download artifacts")
     args = parser.parse_args()
     run_predictions(args.input_csv, args.output_csv, run_id=args.run_id)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

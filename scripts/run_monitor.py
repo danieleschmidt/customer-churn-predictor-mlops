@@ -1,16 +1,15 @@
-import os
-import sys
 import argparse
 
-# Add src directory to Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 from src.monitor_performance import monitor_and_retrain
+from src.config import load_config
 
 
 def main():
     """Evaluate current model performance and retrain if necessary."""
-    parser = argparse.ArgumentParser(description="Monitor model and retrain if accuracy drops")
+    parser = argparse.ArgumentParser(
+        description="Monitor model and retrain if accuracy drops"
+    )
+    cfg = load_config()
     parser.add_argument(
         "--threshold",
         type=float,
@@ -18,20 +17,30 @@ def main():
     )
     parser.add_argument(
         "--X_path",
-        default="data/processed/processed_features.csv",
+        default=cfg["data"]["processed_features"],
         help="Path to processed feature CSV",
     )
     parser.add_argument(
         "--y_path",
-        default="data/processed/processed_target.csv",
+        default=cfg["data"]["processed_target"],
         help="Path to processed target CSV",
     )
-    parser.add_argument("--solver", default="liblinear", help="Logistic regression solver")
-    parser.add_argument("--C", type=float, default=1.0, help="Inverse of regularization strength")
+    parser.add_argument(
+        "--solver", default="liblinear", help="Logistic regression solver"
+    )
+    parser.add_argument(
+        "--C", type=float, default=1.0, help="Inverse of regularization strength"
+    )
     parser.add_argument("--penalty", default="l2", help="Penalty (regularization) type")
-    parser.add_argument("--random_state", type=int, default=42, help="Random seed for training")
-    parser.add_argument("--max_iter", type=int, default=100, help="Maximum number of iterations")
-    parser.add_argument("--test_size", type=float, default=0.2, help="Proportion of dataset for testing")
+    parser.add_argument(
+        "--random_state", type=int, default=42, help="Random seed for training"
+    )
+    parser.add_argument(
+        "--max_iter", type=int, default=100, help="Maximum number of iterations"
+    )
+    parser.add_argument(
+        "--test_size", type=float, default=0.2, help="Proportion of dataset for testing"
+    )
     args = parser.parse_args()
 
     monitor_and_retrain(
@@ -47,5 +56,5 @@ def main():
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
