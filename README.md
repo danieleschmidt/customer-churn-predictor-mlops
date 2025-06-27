@@ -43,6 +43,20 @@ customer-churn-predictor-mlops/
 ├── .gitignore
 └── README.md
 
+## Project Configuration
+
+Most scripts read default paths from `config.yml`. You can customize where
+processed data and model artifacts are stored by editing this file. Each
+section overrides the defaults defined in the code. For example:
+
+```yaml
+data:
+  processed_features: custom/features.csv
+  processed_target: custom/target.csv
+model:
+  path: output/model.joblib
+```
+
 ## Processed Input Format
 
 The preprocessing step produces `data/processed/processed_features.csv`.
@@ -57,7 +71,8 @@ folder so that experiments can be reproduced easily.
 Run `python scripts/run_preprocessing.py` to generate the processed feature and
 target CSV files in the `data/processed/` directory. This step cleans the raw
 dataset and performs one-hot encoding so that training and prediction scripts
-use consistent inputs.
+use consistent inputs. The fitted preprocessing pipeline is saved to
+`models/preprocessor.joblib` and reused during prediction.
 
 ## Training the Model
 Run `python scripts/run_training.py` to train a churn model using the processed
@@ -107,5 +122,26 @@ python scripts/run_pipeline.py \
   --solver saga --C 0.5 --penalty l1 --random_state 7 --max_iter 200 --test_size 0.3
 ```
 
+## Developer Setup
+1. Install project dependencies using `pip install -r requirements.txt`.
+2. Install pre-commit hooks:
+   ```bash
+   pip install pre-commit
+   pre-commit install
+   ```
+3. Run `pytest -q` to ensure everything works.
+
+## Command-Line Interface
+All tasks can be executed through a consolidated CLI powered by [Typer](https://typer.tiangolo.com/).
+Run the desired command via `python -m src.cli <command>`:
+
+```bash
+python -m src.cli preprocess       # prepare datasets
+python -m src.cli train            # train the model
+python -m src.cli evaluate --detailed
+python -m src.cli predict data/processed/processed_features.csv --output_csv preds.csv
+```
+
+Use `--help` after any command to view available options.
 ## How to Contribute (and test Jules)
 Jules, our Async Development Agent, will assist in building out features, tests, and MLOps components. Please create clear issues.

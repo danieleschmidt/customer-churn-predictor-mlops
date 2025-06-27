@@ -1,0 +1,9 @@
+data:
+  raw: data/raw/customer_data.csv
+  processed_features: data/processed/processed_features.csv
+  processed_target: data/processed/processed_target.csv
+model:
+  path: models/churn_model.joblib
+  feature_columns: models/feature_columns.json
+  run_id: models/mlflow_run_id.txt
+  preprocessor: models/preprocessor.joblib
