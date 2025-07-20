@@ -7,6 +7,7 @@ import mlflow.sklearn
 import joblib
 import os
 import json
+from typing import Tuple
 
 from .constants import MODEL_PATH, FEATURE_COLUMNS_PATH, RUN_ID_PATH, MODEL_ARTIFACT_PATH
 from src.logging_config import get_logger
@@ -14,8 +15,8 @@ from src.logging_config import get_logger
 logger = get_logger(__name__)
 
 def train_churn_model(
-    X_path,
-    y_path,
+    X_path: str,
+    y_path: str,
     *,
     solver: str = "liblinear",
     C: float = 1.0,
@@ -23,7 +24,7 @@ def train_churn_model(
     random_state: int = 42,
     max_iter: int = 100,
     test_size: float = 0.2,
-):
+) -> Tuple[str, str]:
     """Train a churn prediction model and log it with MLflow.
 
     Parameters
@@ -54,8 +55,8 @@ def train_churn_model(
         The path to the saved model and the MLflow run ID.
     """
     logger.info(f"Loading data from {X_path} and {y_path}...")
-    X = pd.read_csv(X_path)
-    y = pd.read_csv(y_path).squeeze() # Use squeeze() to convert DataFrame column to Series
+    X: pd.DataFrame = pd.read_csv(X_path)
+    y: pd.Series = pd.read_csv(y_path).squeeze() # Use squeeze() to convert DataFrame column to Series
 
     # Split data
     logger.info("Splitting data into training and testing sets...")

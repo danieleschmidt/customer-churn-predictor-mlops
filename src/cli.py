@@ -12,7 +12,7 @@ app = typer.Typer(help="Customer churn prediction command-line interface")
 
 
 @app.command()
-def preprocess():
+def preprocess() -> None:
     """Preprocess raw data and save processed datasets."""
     run_preprocessing()
 
@@ -27,7 +27,7 @@ def train(
     random_state: int = 42,
     max_iter: int = 100,
     test_size: float = 0.2,
-):
+) -> None:
     """Train the churn model."""
     run_training(
         x_path,
@@ -49,7 +49,7 @@ def evaluate(
     run_id: Optional[str] = None,
     output: Optional[str] = None,
     detailed: bool = False,
-):
+) -> None:
     """Evaluate a trained model."""
     run_evaluation(
         model_path=model_path,
@@ -70,7 +70,7 @@ def pipeline(
     random_state: int = 42,
     max_iter: int = 100,
     test_size: float = 0.2,
-):
+) -> None:
     """Run preprocessing, training and evaluation as one pipeline."""
     run_pipeline(
         raw_path,
@@ -94,7 +94,7 @@ def monitor(
     random_state: int = 42,
     max_iter: int = 100,
     test_size: float = 0.2,
-):
+) -> None:
     """Monitor model performance and retrain if necessary."""
     kwargs = {
         "threshold": threshold,
@@ -118,12 +118,12 @@ def predict(
     input_csv: str,
     output_csv: str = "predictions.csv",
     run_id: Optional[str] = None,
-):
+) -> None:
     """Generate predictions for a CSV of features."""
     run_predictions(input_csv, output_csv, run_id=run_id)
 
 
-def main():
+def main() -> None:
     app()
 
 

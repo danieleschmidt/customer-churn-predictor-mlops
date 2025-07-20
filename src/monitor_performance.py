@@ -4,6 +4,7 @@ import pandas as pd
 import mlflow
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 import json
+from typing import Union, Tuple, Dict, Any, Optional
 
 from src.train_model import train_churn_model
 from src.predict_churn import _get_run_id
@@ -23,13 +24,13 @@ THRESHOLD_ACCURACY = DEFAULT_THRESHOLD
 
 
 def evaluate_model(
-    model_path=MODEL_PATH,
-    X_path=PROCESSED_FEATURES_PATH,
-    y_path=PROCESSED_TARGET_PATH,
-    run_id=None,
+    model_path: str = MODEL_PATH,
+    X_path: str = PROCESSED_FEATURES_PATH,
+    y_path: str = PROCESSED_TARGET_PATH,
+    run_id: Optional[str] = None,
     *,
     detailed: bool = False,
-):
+) -> Union[Tuple[float, float], Tuple[float, float, Dict[str, Any]]]:
     """Evaluate the existing model on the processed dataset.
 
     Parameters
@@ -89,7 +90,7 @@ def evaluate_model(
 
 
 def monitor_and_retrain(
-    threshold: float | None = None,
+    threshold: Optional[float] = None,
     *,
     X_path: str = PROCESSED_FEATURES_PATH,
     y_path: str = PROCESSED_TARGET_PATH,
@@ -99,7 +100,7 @@ def monitor_and_retrain(
     random_state: int = 42,
     max_iter: int = 100,
     test_size: float = 0.2,
-):
+) -> None:
     """Monitor performance and retrain the model if accuracy falls below threshold.
 
     Parameters

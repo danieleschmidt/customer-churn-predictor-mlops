@@ -65,8 +65,8 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
     if input_df.empty:
         return [], []
     
-    model = None
-    preprocessor = None
+    model: Optional[Any] = None
+    preprocessor: Optional[Any] = None
     if run_id is None:
         run_id = _get_run_id()
     
@@ -116,7 +116,7 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
             logger.error(f"Error downloading preprocessor from MLflow: {e}")
     
     # Load feature columns
-    columns = None
+    columns: Optional[List[str]] = None
     if os.path.exists(FEATURE_COLUMNS_PATH):
         try:
             with open(FEATURE_COLUMNS_PATH) as f:
@@ -210,8 +210,8 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
         resolved from the ``MLFLOW_RUN_ID`` environment variable or the
         ``models/mlflow_run_id.txt`` file.
     """
-    model = None
-    preprocessor = None
+    model: Optional[Any] = None
+    preprocessor: Optional[Any] = None
     if run_id is None:
         run_id = _get_run_id()
     if os.path.exists(MODEL_PATH):
@@ -260,7 +260,7 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
         except (ImportError, OSError, FileNotFoundError, RuntimeError) as e:
             logger.error(f"Error downloading preprocessor from MLflow: {e}")
 
-    columns = None
+    columns: Optional[List[str]] = None
     if os.path.exists(FEATURE_COLUMNS_PATH):
         try:
             with open(FEATURE_COLUMNS_PATH) as f:
