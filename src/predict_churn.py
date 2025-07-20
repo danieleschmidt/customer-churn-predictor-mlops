@@ -9,11 +9,11 @@ from .constants import (
     MODEL_PATH,
     FEATURE_COLUMNS_PATH,
     RUN_ID_PATH,
-    RUN_ID_ENV_VAR,
     MODEL_ARTIFACT_PATH,
     PREPROCESSOR_PATH,
 )
 from .logging_config import get_logger
+from .env_config import env_config
 
 logger = get_logger(__name__)
 
@@ -35,8 +35,8 @@ logger = get_logger(__name__)
 
 
 def _get_run_id() -> Optional[str]:
-    """Return the MLflow run ID from env var or file if available."""
-    run_id = os.environ.get(RUN_ID_ENV_VAR)
+    """Return the MLflow run ID from validated env config or file if available."""
+    run_id = env_config.mlflow_run_id
     if run_id:
         return run_id
     if os.path.exists(RUN_ID_PATH):
@@ -65,8 +65,8 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
     if input_df.empty:
         return [], []
     
-    model = None
-    preprocessor = None
+    model: Optional[Any] = None
+    preprocessor: Optional[Any] = None
     if run_id is None:
         run_id = _get_run_id()
     
@@ -75,7 +75,7 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
         try:
             logger.info(f"Loading model from {MODEL_PATH}...")
             model = joblib.load(MODEL_PATH)
-        except Exception as e:
+        except (FileNotFoundError, EOFError, OSError, RuntimeError) as e:
             logger.error(f"Error loading model: {e}")
             return None, None
     elif run_id:
@@ -85,7 +85,7 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
             os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
             joblib.dump(model, MODEL_PATH)
             logger.info(f"Saved downloaded model to {MODEL_PATH}")
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError) as e:
             logger.error(f"Error downloading model from MLflow: {e}")
             return None, None
     else:
@@ -96,7 +96,7 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
     if os.path.exists(PREPROCESSOR_PATH):
         try:
             preprocessor = joblib.load(PREPROCESSOR_PATH)
-        except Exception as e:
+        except (FileNotFoundError, EOFError, OSError, RuntimeError) as e:
             logger.error(f"Error loading preprocessor: {e}")
     elif run_id:
         try:
@@ -112,16 +112,16 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
             preprocessor = joblib.load(path)
             os.makedirs(os.path.dirname(PREPROCESSOR_PATH), exist_ok=True)
             joblib.dump(preprocessor, PREPROCESSOR_PATH)
-        except Exception as e:
+        except (ImportError, OSError, FileNotFoundError, RuntimeError) as e:
             logger.error(f"Error downloading preprocessor from MLflow: {e}")
     
     # Load feature columns
-    columns = None
+    columns: Optional[List[str]] = None
     if os.path.exists(FEATURE_COLUMNS_PATH):
         try:
             with open(FEATURE_COLUMNS_PATH) as f:
                 columns = json.load(f)
-        except Exception as e:
+        except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
             logger.error(f"Error loading feature columns: {e}")
             columns = None
     
@@ -139,7 +139,7 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
             os.makedirs(os.path.dirname(FEATURE_COLUMNS_PATH), exist_ok=True)
             with open(FEATURE_COLUMNS_PATH, "w") as out_f:
                 json.dump(columns, out_f)
-        except Exception as e:
+        except (ImportError, FileNotFoundError, json.JSONDecodeError, OSError, RuntimeError) as e:
             logger.error(f"Error downloading feature columns from MLflow: {e}")
             columns = None
     
@@ -181,7 +181,7 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
         
         return predictions.tolist(), churn_probabilities.tolist()
         
-    except Exception as e:
+    except (ValueError, KeyError, AttributeError, TypeError, IndexError) as e:
         logger.error(f"Error during batch prediction: {e}")
         return None, None
 
@@ -210,15 +210,15 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
         resolved from the ``MLFLOW_RUN_ID`` environment variable or the
         ``models/mlflow_run_id.txt`` file.
     """
-    model = None
-    preprocessor = None
+    model: Optional[Any] = None
+    preprocessor: Optional[Any] = None
     if run_id is None:
         run_id = _get_run_id()
     if os.path.exists(MODEL_PATH):
         try:
             logger.info(f"Loading model from {MODEL_PATH}...")
             model = joblib.load(MODEL_PATH)
-        except Exception as e:
+        except (FileNotFoundError, EOFError, OSError, RuntimeError) as e:
             logger.error(f"Error loading model: {e}")
             return None, None
     elif run_id:
@@ -228,7 +228,7 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
             os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
             joblib.dump(model, MODEL_PATH)
             logger.info(f"Saved downloaded model to {MODEL_PATH}")
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError) as e:
             logger.error(f"Error downloading model from MLflow: {e}")
             return None, None
     else:
@@ -241,7 +241,7 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
     if os.path.exists(PREPROCESSOR_PATH):
         try:
             preprocessor = joblib.load(PREPROCESSOR_PATH)
-        except Exception as e:
+        except (FileNotFoundError, EOFError, OSError, RuntimeError) as e:
             logger.error(f"Error loading preprocessor: {e}")
     elif run_id:
         try:
@@ -257,15 +257,15 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
             preprocessor = joblib.load(path)
             os.makedirs(os.path.dirname(PREPROCESSOR_PATH), exist_ok=True)
             joblib.dump(preprocessor, PREPROCESSOR_PATH)
-        except Exception as e:
+        except (ImportError, OSError, FileNotFoundError, RuntimeError) as e:
             logger.error(f"Error downloading preprocessor from MLflow: {e}")
 
-    columns = None
+    columns: Optional[List[str]] = None
     if os.path.exists(FEATURE_COLUMNS_PATH):
         try:
             with open(FEATURE_COLUMNS_PATH) as f:
                 columns = json.load(f)
-        except Exception as e:
+        except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
             logger.error(f"Error loading feature columns: {e}")
             columns = None
 
@@ -284,7 +284,7 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
             os.makedirs(os.path.dirname(FEATURE_COLUMNS_PATH), exist_ok=True)
             with open(FEATURE_COLUMNS_PATH, "w") as out_f:
                 json.dump(columns, out_f)
-        except Exception as e:
+        except (ImportError, FileNotFoundError, json.JSONDecodeError, OSError, RuntimeError) as e:
             logger.error(f"Error downloading feature columns from MLflow: {e}")
             columns = None
 
@@ -351,7 +351,7 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
 
         return int(prediction[0]), float(churn_probability)
 
-    except Exception as e:
+    except (ValueError, KeyError, AttributeError, TypeError, IndexError) as e:
         logger.error(f"Error during prediction: {e}")
         # This could be due to mismatched feature names/order, or unexpected data types.
         # Example: if input_data_dict doesn't have all columns model expects based on training.
@@ -420,7 +420,7 @@ if __name__ == "__main__":
                     logger.info(f"Probability of Churn: {probability:.4f}")
                 else:
                     logger.error("\nExample Prediction failed. Check logs for errors.")
-            except Exception as e:
+            except (FileNotFoundError, pd.errors.EmptyDataError, KeyError, IndexError) as e:
                 logger.error(
                     f"Could not create example input for testing predict_churn.py: {e}"
                 )

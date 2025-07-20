@@ -4,32 +4,30 @@ import pandas as pd
 import mlflow
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 import json
+from typing import Union, Tuple, Dict, Any, Optional
 
 from src.train_model import train_churn_model
 from src.predict_churn import _get_run_id
 from .constants import (
-from src.logging_config import get_logger
-
-logger = get_logger(__name__)
     MODEL_PATH,
     MODEL_ARTIFACT_PATH,
     PROCESSED_FEATURES_PATH,
     PROCESSED_TARGET_PATH,
-    DEFAULT_THRESHOLD,
-    THRESHOLD_ENV_VAR,
 )
+from src.logging_config import get_logger
+from src.env_config import env_config
 
-THRESHOLD_ACCURACY = DEFAULT_THRESHOLD
+logger = get_logger(__name__)
 
 
 def evaluate_model(
-    model_path=MODEL_PATH,
-    X_path=PROCESSED_FEATURES_PATH,
-    y_path=PROCESSED_TARGET_PATH,
-    run_id=None,
+    model_path: str = MODEL_PATH,
+    X_path: str = PROCESSED_FEATURES_PATH,
+    y_path: str = PROCESSED_TARGET_PATH,
+    run_id: Optional[str] = None,
     *,
     detailed: bool = False,
-):
+) -> Union[Tuple[float, float], Tuple[float, float, Dict[str, Any]]]:
     """Evaluate the existing model on the processed dataset.
 
     Parameters
@@ -56,7 +54,7 @@ def evaluate_model(
             os.makedirs(os.path.dirname(model_path), exist_ok=True)
             joblib.dump(model, model_path)
             logger.info(f"Saved downloaded model to {model_path}")
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError) as e:
             logger.error(f"Error downloading model from MLflow: {e}")
             raise FileNotFoundError(f"Model not found at {model_path}") from e
     else:
@@ -89,7 +87,7 @@ def evaluate_model(
 
 
 def monitor_and_retrain(
-    threshold: float | None = None,
+    threshold: Optional[float] = None,
     *,
     X_path: str = PROCESSED_FEATURES_PATH,
     y_path: str = PROCESSED_TARGET_PATH,
@@ -99,7 +97,7 @@ def monitor_and_retrain(
     random_state: int = 42,
     max_iter: int = 100,
     test_size: float = 0.2,
-):
+) -> None:
     """Monitor performance and retrain the model if accuracy falls below threshold.
 
     Parameters
@@ -117,16 +115,9 @@ def monitor_and_retrain(
         retraining is triggered.
     """
     if threshold is None:
-        # Check environment variable first
-        env_val = os.environ.get(THRESHOLD_ENV_VAR)
-        if env_val is not None:
-            try:
-                threshold = float(env_val)
-            except ValueError:
-                logger.info(f"Invalid {THRESHOLD_ENV_VAR} value: {env_val}. Using default {THRESHOLD_ACCURACY}.")
-                threshold = THRESHOLD_ACCURACY
-        else:
-            threshold = THRESHOLD_ACCURACY
+        # Use validated environment configuration
+        threshold = env_config.churn_threshold
+        logger.info(f"Using validated churn threshold: {threshold}")
 
     try:
         accuracy, f1 = evaluate_model(
