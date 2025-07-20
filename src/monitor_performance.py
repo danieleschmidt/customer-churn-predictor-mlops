@@ -8,9 +8,6 @@ import json
 from src.train_model import train_churn_model
 from src.predict_churn import _get_run_id
 from .constants import (
-from src.logging_config import get_logger
-
-logger = get_logger(__name__)
     MODEL_PATH,
     MODEL_ARTIFACT_PATH,
     PROCESSED_FEATURES_PATH,
@@ -18,6 +15,9 @@ logger = get_logger(__name__)
     DEFAULT_THRESHOLD,
     THRESHOLD_ENV_VAR,
 )
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 THRESHOLD_ACCURACY = DEFAULT_THRESHOLD
 
@@ -56,7 +56,7 @@ def evaluate_model(
             os.makedirs(os.path.dirname(model_path), exist_ok=True)
             joblib.dump(model, model_path)
             logger.info(f"Saved downloaded model to {model_path}")
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError) as e:
             logger.error(f"Error downloading model from MLflow: {e}")
             raise FileNotFoundError(f"Model not found at {model_path}") from e
     else:
