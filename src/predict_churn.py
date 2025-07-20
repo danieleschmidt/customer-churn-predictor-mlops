@@ -9,11 +9,11 @@ from .constants import (
     MODEL_PATH,
     FEATURE_COLUMNS_PATH,
     RUN_ID_PATH,
-    RUN_ID_ENV_VAR,
     MODEL_ARTIFACT_PATH,
     PREPROCESSOR_PATH,
 )
 from .logging_config import get_logger
+from .env_config import env_config
 
 logger = get_logger(__name__)
 
@@ -35,8 +35,8 @@ logger = get_logger(__name__)
 
 
 def _get_run_id() -> Optional[str]:
-    """Return the MLflow run ID from env var or file if available."""
-    run_id = os.environ.get(RUN_ID_ENV_VAR)
+    """Return the MLflow run ID from validated env config or file if available."""
+    run_id = env_config.mlflow_run_id
     if run_id:
         return run_id
     if os.path.exists(RUN_ID_PATH):

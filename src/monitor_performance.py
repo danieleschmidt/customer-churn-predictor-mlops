@@ -13,14 +13,11 @@ from .constants import (
     MODEL_ARTIFACT_PATH,
     PROCESSED_FEATURES_PATH,
     PROCESSED_TARGET_PATH,
-    DEFAULT_THRESHOLD,
-    THRESHOLD_ENV_VAR,
 )
 from src.logging_config import get_logger
+from src.env_config import env_config
 
 logger = get_logger(__name__)
-
-THRESHOLD_ACCURACY = DEFAULT_THRESHOLD
 
 
 def evaluate_model(
@@ -118,16 +115,9 @@ def monitor_and_retrain(
         retraining is triggered.
     """
     if threshold is None:
-        # Check environment variable first
-        env_val = os.environ.get(THRESHOLD_ENV_VAR)
-        if env_val is not None:
-            try:
-                threshold = float(env_val)
-            except ValueError:
-                logger.info(f"Invalid {THRESHOLD_ENV_VAR} value: {env_val}. Using default {THRESHOLD_ACCURACY}.")
-                threshold = THRESHOLD_ACCURACY
-        else:
-            threshold = THRESHOLD_ACCURACY
+        # Use validated environment configuration
+        threshold = env_config.churn_threshold
+        logger.info(f"Using validated churn threshold: {threshold}")
 
     try:
         accuracy, f1 = evaluate_model(
