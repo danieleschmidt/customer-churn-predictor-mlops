@@ -1,0 +1,46 @@
+# Auto-generated lockfile for requirements-dev.txt
+# Generated on: 2025-07-20
+# Python version: 3.12
+# 
+# This file pins all dependencies (including transitive ones) to exact versions
+# for maximum reproducibility. To update dependencies:
+# 1. Update the main requirements file (requirements-dev.txt)
+# 2. Run: python generate_lockfile.py (when available) or manually update
+# 3. Test thoroughly before committing changes
+#
+# Development dependencies with exact versions
+# ================================================================
+
+# Include all production dependencies
+-r requirements.lock
+
+# Testing Framework
+pytest==8.3.3
+pytest-cov==5.0.0
+
+# Code Quality Tools
+black==24.8.0
+flake8==7.1.1
+mypy==1.11.2
+
+# Pytest transitive dependencies
+iniconfig>=1.1.1
+pluggy>=0.12.0
+tomli>=1.0.0
+exceptiongroup>=1.0.4
+coverage>=5.0
+
+# Black transitive dependencies
+pathspec>=0.9.0
+platformdirs>=2.0.0
+tomli>=1.1.0
+typing-extensions>=4.0.1
+
+# Flake8 transitive dependencies
+mccabe>=0.7.0
+pycodestyle>=2.11.0
+pyflakes>=3.1.0
+
+# MyPy transitive dependencies
+mypy-extensions>=1.0.0
+typed-ast>=1.4.0
