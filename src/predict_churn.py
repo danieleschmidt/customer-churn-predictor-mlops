@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import json
 import mlflow
+from typing import Optional, Tuple, List, Dict, Any
 
 from .constants import (
     MODEL_PATH,
@@ -30,7 +31,7 @@ from .constants import (
 # by the caller providing data in the correct one-hot encoded format.
 
 
-def _get_run_id():
+def _get_run_id() -> Optional[str]:
     """Return the MLflow run ID from env var or file if available."""
     run_id = os.environ.get(RUN_ID_ENV_VAR)
     if run_id:
@@ -41,7 +42,148 @@ def _get_run_id():
     return None
 
 
-def make_prediction(input_data_dict, run_id=None):
+def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None) -> Tuple[Optional[List[int]], Optional[List[float]]]:
+    """
+    Loads the trained model and makes churn predictions for a batch of customers.
+    
+    This function is optimized for performance when processing multiple predictions
+    by loading the model once and applying vectorized operations.
+    
+    Args:
+        input_df (pd.DataFrame): A DataFrame where each row represents a customer's
+            features. If a fitted preprocessor is available it will be applied;
+            otherwise the DataFrame must already be in the processed format.
+        run_id (str, optional): MLflow run ID to download artifacts from.
+    
+    Returns:
+        tuple: (predictions, probabilities) where each is a list of the same length
+               as the input DataFrame. Returns (None, None) if model not found.
+    """
+    if input_df.empty:
+        return [], []
+    
+    model = None
+    preprocessor = None
+    if run_id is None:
+        run_id = _get_run_id()
+    
+    # Load model (same logic as single prediction)
+    if os.path.exists(MODEL_PATH):
+        try:
+            print(f"Loading model from {MODEL_PATH}...")
+            model = joblib.load(MODEL_PATH)
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            return None, None
+    elif run_id:
+        try:
+            print(f"Downloading model from MLflow run {run_id}...")
+            model = mlflow.sklearn.load_model(f"runs:/{run_id}/{MODEL_ARTIFACT_PATH}")
+            os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+            joblib.dump(model, MODEL_PATH)
+            print(f"Saved downloaded model to {MODEL_PATH}")
+        except Exception as e:
+            print(f"Error downloading model from MLflow: {e}")
+            return None, None
+    else:
+        print(f"Error: Model not found at {MODEL_PATH} and no run ID available")
+        return None, None
+    
+    # Load preprocessor if available
+    if os.path.exists(PREPROCESSOR_PATH):
+        try:
+            preprocessor = joblib.load(PREPROCESSOR_PATH)
+        except Exception as e:
+            print(f"Error loading preprocessor: {e}")
+    elif run_id:
+        try:
+            print(f"Downloading preprocessor from MLflow run {run_id}...")
+            dl_path = mlflow.artifacts.download_artifacts(
+                run_id=run_id, artifact_path="preprocessor.joblib"
+            )
+            path = (
+                os.path.join(dl_path, "preprocessor.joblib")
+                if os.path.isdir(dl_path)
+                else dl_path
+            )
+            preprocessor = joblib.load(path)
+            os.makedirs(os.path.dirname(PREPROCESSOR_PATH), exist_ok=True)
+            joblib.dump(preprocessor, PREPROCESSOR_PATH)
+        except Exception as e:
+            print(f"Error downloading preprocessor from MLflow: {e}")
+    
+    # Load feature columns
+    columns = None
+    if os.path.exists(FEATURE_COLUMNS_PATH):
+        try:
+            with open(FEATURE_COLUMNS_PATH) as f:
+                columns = json.load(f)
+        except Exception as e:
+            print(f"Error loading feature columns: {e}")
+            columns = None
+    
+    if columns is None and run_id:
+        try:
+            dl_path = mlflow.artifacts.download_artifacts(
+                run_id=run_id, artifact_path="feature_columns.json"
+            )
+            if os.path.isdir(dl_path):
+                path = os.path.join(dl_path, "feature_columns.json")
+            else:
+                path = dl_path
+            with open(path) as f:
+                columns = json.load(f)
+            os.makedirs(os.path.dirname(FEATURE_COLUMNS_PATH), exist_ok=True)
+            with open(FEATURE_COLUMNS_PATH, "w") as out_f:
+                json.dump(columns, out_f)
+        except Exception as e:
+            print(f"Error downloading feature columns from MLflow: {e}")
+            columns = None
+    
+    try:
+        # Prepare the DataFrame for prediction
+        if preprocessor is not None:
+            if columns is None:
+                columns = list(preprocessor.get_feature_names_out())
+                os.makedirs(os.path.dirname(FEATURE_COLUMNS_PATH), exist_ok=True)
+                with open(FEATURE_COLUMNS_PATH, "w") as f:
+                    json.dump(columns, f)
+            
+            # Check if input is raw or processed data
+            raw_features = set(getattr(preprocessor, "feature_names_in_", []))
+            if raw_features and set(input_df.columns).issubset(raw_features):
+                # Apply preprocessing to the entire DataFrame at once
+                X_proc = preprocessor.transform(input_df)
+                processed_df = pd.DataFrame(X_proc, columns=columns, index=input_df.index)
+            else:
+                # Data is already processed, just align columns
+                processed_df = input_df.reindex(columns=columns, fill_value=0)
+        elif columns:
+            # Align DataFrame columns with expected feature order
+            processed_df = input_df.reindex(columns=columns, fill_value=0)
+        else:
+            # Use DataFrame as-is
+            processed_df = input_df
+        
+        print(f"Making batch predictions for {len(processed_df)} samples...")
+        
+        # Vectorized prediction - much faster than iterating
+        predictions = model.predict(processed_df)
+        probabilities = model.predict_proba(processed_df)
+        
+        # Extract probabilities for positive class (churn=1)
+        churn_probabilities = probabilities[:, 1]
+        
+        print(f"Completed batch predictions for {len(predictions)} samples")
+        
+        return predictions.tolist(), churn_probabilities.tolist()
+        
+    except Exception as e:
+        print(f"Error during batch prediction: {e}")
+        return None, None
+
+
+def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = None) -> Tuple[Optional[int], Optional[float]]:
     """
     Loads the trained model and makes a churn prediction.
 
