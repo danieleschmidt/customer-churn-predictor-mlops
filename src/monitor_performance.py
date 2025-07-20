@@ -8,6 +8,9 @@ import json
 from src.train_model import train_churn_model
 from src.predict_churn import _get_run_id
 from .constants import (
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
     MODEL_PATH,
     MODEL_ARTIFACT_PATH,
     PROCESSED_FEATURES_PATH,
@@ -48,13 +51,13 @@ def evaluate_model(
         model = joblib.load(model_path)
     elif run_id:
         try:
-            print(f"Downloading model from MLflow run {run_id}...")
+            logger.info(f"Downloading model from MLflow run {run_id}...")
             model = mlflow.sklearn.load_model(f"runs:/{run_id}/{MODEL_ARTIFACT_PATH}")
             os.makedirs(os.path.dirname(model_path), exist_ok=True)
             joblib.dump(model, model_path)
-            print(f"Saved downloaded model to {model_path}")
+            logger.info(f"Saved downloaded model to {model_path}")
         except Exception as e:
-            print(f"Error downloading model from MLflow: {e}")
+            logger.error(f"Error downloading model from MLflow: {e}")
             raise FileNotFoundError(f"Model not found at {model_path}") from e
     else:
         raise FileNotFoundError(f"Model not found at {model_path}")
@@ -120,7 +123,7 @@ def monitor_and_retrain(
             try:
                 threshold = float(env_val)
             except ValueError:
-                print(f"Invalid {THRESHOLD_ENV_VAR} value: {env_val}. Using default {THRESHOLD_ACCURACY}.")
+                logger.info(f"Invalid {THRESHOLD_ENV_VAR} value: {env_val}. Using default {THRESHOLD_ACCURACY}.")
                 threshold = THRESHOLD_ACCURACY
         else:
             threshold = THRESHOLD_ACCURACY
@@ -131,10 +134,10 @@ def monitor_and_retrain(
             X_path,
             y_path,
         )
-        print(f"Current model accuracy: {accuracy:.4f}, F1-score: {f1:.4f}")
+        logger.info(f"Current model accuracy: {accuracy:.4f}, F1-score: {f1:.4f}")
     except FileNotFoundError as e:
-        print(e)
-        print("Training model from scratch...")
+        logger.error(str(e))
+        logger.info("Training model from scratch...")
         train_churn_model(
             X_path,
             y_path,
@@ -148,7 +151,7 @@ def monitor_and_retrain(
         return
 
     if accuracy < threshold:
-        print(
+        logger.warning(
             f"Accuracy {accuracy:.4f} is below threshold {threshold}. Retraining model..."
         )
         train_churn_model(
@@ -162,7 +165,7 @@ def monitor_and_retrain(
             test_size=test_size,
         )
     else:
-        print("Model performance is acceptable. No retraining required.")
+        logger.info("Model performance is acceptable. No retraining required.")
 
 
 if __name__ == '__main__':

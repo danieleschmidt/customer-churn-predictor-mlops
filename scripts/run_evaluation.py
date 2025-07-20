@@ -2,6 +2,9 @@ import argparse
 import json
 from src.monitor_performance import evaluate_model
 from src.config import load_config
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def run_evaluation(
@@ -32,7 +35,7 @@ def run_evaluation(
             metrics["classification_report"] = report
         with open(output, "w") as f:
             json.dump(metrics, f)
-        print(f"Saved metrics to {output}")
+        logger.info(f"Saved metrics to {output}")
     if detailed:
         return accuracy, f1, report
     return accuracy, f1
@@ -69,11 +72,11 @@ def main():
     )
     if args.detailed:
         accuracy, f1, report = result
-        print(json.dumps(report, indent=2))
+        logger.info(f"Detailed classification report:\n{json.dumps(report, indent=2)}")
     else:
         accuracy, f1 = result
-    print(f"Accuracy: {accuracy:.4f}")
-    print(f"F1-score: {f1:.4f}")
+    logger.info(f"Accuracy: {accuracy:.4f}")
+    logger.info(f"F1-score: {f1:.4f}")
 
 
 if __name__ == "__main__":

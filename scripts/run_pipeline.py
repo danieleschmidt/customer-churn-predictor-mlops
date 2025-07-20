@@ -7,6 +7,9 @@ from src.constants import PREPROCESSOR_PATH
 from src.config import load_config
 from scripts.run_training import run_training
 from scripts.run_evaluation import run_evaluation
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def run_pipeline(
@@ -54,7 +57,7 @@ def run_pipeline(
         return_preprocessor=True,
         save_preprocessor=True,
     )
-    print(f"Saved fitted preprocessor to {PREPROCESSOR_PATH}")
+    logger.info(f"Saved fitted preprocessor to {PREPROCESSOR_PATH}")
     X_proc.to_csv(processed_features, index=False)
     pd.DataFrame(y_proc, columns=["Churn"]).to_csv(processed_target, index=False)
 
@@ -71,7 +74,7 @@ def run_pipeline(
     accuracy, f1 = run_evaluation(
         model_path, processed_features, processed_target, run_id=run_id
     )
-    print(f"Pipeline completed. Accuracy: {accuracy:.4f}, F1-score: {f1:.4f}")
+    logger.info(f"Pipeline completed. Accuracy: {accuracy:.4f}, F1-score: {f1:.4f}")
     return accuracy, f1
 
 

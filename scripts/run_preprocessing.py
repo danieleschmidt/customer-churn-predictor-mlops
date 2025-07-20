@@ -4,6 +4,9 @@ import pandas as pd
 from src.preprocess_data import preprocess
 from src.constants import PREPROCESSOR_PATH
 from src.config import load_config
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def run_preprocessing() -> tuple[str, str]:
@@ -24,25 +27,25 @@ def run_preprocessing() -> tuple[str, str]:
     os.makedirs(os.path.dirname(processed_target_path), exist_ok=True)
 
     # Preprocess data
-    print(f"Loading raw data from {raw_data_path}...")
+    logger.info(f"Loading raw data from {raw_data_path}...")
     X_processed, y_processed, preprocessor = preprocess(
         raw_data_path,
         return_preprocessor=True,
         save_preprocessor=True,
     )
 
-    print(f"Saved fitted preprocessor to {PREPROCESSOR_PATH}")
+    logger.info(f"Saved fitted preprocessor to {PREPROCESSOR_PATH}")
 
     # Save processed data
-    print(f"Saving processed features to {processed_features_path}...")
+    logger.info(f"Saving processed features to {processed_features_path}...")
     X_processed.to_csv(processed_features_path, index=False)
 
-    print(f"Saving processed target to {processed_target_path}...")
+    logger.info(f"Saving processed target to {processed_target_path}...")
     pd.DataFrame(y_processed, columns=["Churn"]).to_csv(
         processed_target_path, index=False
     )
 
-    print("Preprocessing complete.")
+    logger.info("Preprocessing complete.")
     return processed_features_path, processed_target_path
 
 
