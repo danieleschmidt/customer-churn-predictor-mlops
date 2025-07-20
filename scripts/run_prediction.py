@@ -5,6 +5,9 @@ from typing import Optional
 
 from src.predict_churn import make_batch_predictions, make_prediction
 from src.config import load_config
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def run_predictions(input_csv: str, output_csv: str, run_id: Optional[str] = None, batch_mode: bool = True):
@@ -27,16 +30,16 @@ def run_predictions(input_csv: str, output_csv: str, run_id: Optional[str] = Non
         df["prediction"] = []
         df["probability"] = []
         df.to_csv(output_csv, index=False)
-        print(f"Saved empty predictions to {output_csv}")
+        logger.info(f"Saved empty predictions to {output_csv}")
         return
     
     if batch_mode:
         # Use optimized batch prediction (vectorized operations)
-        print(f"Processing {len(df)} predictions in batch mode...")
+        logger.info(f"Processing {len(df)} predictions in batch mode...")
         predictions, probabilities = make_batch_predictions(df, run_id=run_id)
         
         if predictions is None or probabilities is None:
-            print("Batch prediction failed, falling back to row-by-row processing...")
+            logger.error("Batch prediction failed, falling back to row-by-row processing...")
             batch_mode = False
         else:
             df["prediction"] = predictions
@@ -44,7 +47,7 @@ def run_predictions(input_csv: str, output_csv: str, run_id: Optional[str] = Non
     
     if not batch_mode:
         # Fallback to row-by-row prediction (for error recovery or debugging)
-        print(f"Processing {len(df)} predictions row-by-row...")
+        logger.info(f"Processing {len(df)} predictions row-by-row...")
         predictions = []
         probabilities = []
 
@@ -57,7 +60,7 @@ def run_predictions(input_csv: str, output_csv: str, run_id: Optional[str] = Non
         df["probability"] = probabilities
 
     df.to_csv(output_csv, index=False)
-    print(f"Saved predictions to {output_csv}")
+    logger.info(f"Saved predictions to {output_csv}")
 
 
 def main():

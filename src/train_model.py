@@ -9,6 +9,9 @@ import os
 import json
 
 from .constants import MODEL_PATH, FEATURE_COLUMNS_PATH, RUN_ID_PATH, MODEL_ARTIFACT_PATH
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 def train_churn_model(
     X_path,
@@ -50,12 +53,12 @@ def train_churn_model(
     tuple[str, str]
         The path to the saved model and the MLflow run ID.
     """
-    print(f"Loading data from {X_path} and {y_path}...")
+    logger.info(f"Loading data from {X_path} and {y_path}...")
     X = pd.read_csv(X_path)
     y = pd.read_csv(y_path).squeeze() # Use squeeze() to convert DataFrame column to Series
 
     # Split data
-    print("Splitting data into training and testing sets...")
+    logger.info("Splitting data into training and testing sets...")
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
@@ -67,10 +70,10 @@ def train_churn_model(
     # Initialize MLflow run
     with mlflow.start_run() as run:
         run_id = run.info.run_id
-        print(f"MLflow Run ID: {run_id}")
+        logger.info(f"MLflow Run ID: {run_id}")
 
         # Initialize and train Logistic Regression model
-        print("Training Logistic Regression model...")
+        logger.info("Training Logistic Regression model...")
         model = LogisticRegression(
             solver=solver,
             C=C,
@@ -87,11 +90,11 @@ def train_churn_model(
         accuracy = accuracy_score(y_test, y_pred_test)
         f1 = f1_score(y_test, y_pred_test)
 
-        print(f"Test Set Accuracy: {accuracy:.4f}")
-        print(f"Test Set F1-score: {f1:.4f}")
+        logger.info(f"Test Set Accuracy: {accuracy:.4f}")
+        logger.info(f"Test Set F1-score: {f1:.4f}")
 
         # Log parameters
-        print("Logging model parameters to MLflow...")
+        logger.info("Logging model parameters to MLflow...")
         mlflow.log_param("solver", model.get_params()['solver'])
         mlflow.log_param("C", model.get_params()['C'])
         mlflow.log_param("penalty", model.get_params()['penalty'])
@@ -100,18 +103,18 @@ def train_churn_model(
         mlflow.log_param("test_size", test_size)
 
         # Log metrics
-        print("Logging model metrics to MLflow...")
+        logger.info("Logging model metrics to MLflow...")
         mlflow.log_metric("accuracy", accuracy)
         mlflow.log_metric("f1_score", f1)
 
         # Log model
-        print("Logging model to MLflow...")
+        logger.info("Logging model to MLflow...")
         mlflow.sklearn.log_model(model, MODEL_ARTIFACT_PATH)
 
         # Save the trained model
         model_dir = os.path.dirname(MODEL_PATH)
         os.makedirs(model_dir, exist_ok=True)
-        print(f"Saving trained model to {MODEL_PATH}...")
+        logger.info(f"Saving trained model to {MODEL_PATH}...")
         joblib.dump(model, MODEL_PATH)
 
         # Save feature column order for prediction
@@ -124,19 +127,19 @@ def train_churn_model(
         with open(RUN_ID_PATH, 'w') as f:
             f.write(run_id)
 
-        print("Model training and MLflow logging complete.")
+        logger.info("Model training and MLflow logging complete.")
         return MODEL_PATH, run_id
 
 if __name__ == '__main__':
     # This part is for direct script execution testing, if needed.
     # Typically, this would be called by run_training.py
-    print("Starting model training directly (for testing purposes)...")
+    logger.info("Starting model training directly (for testing purposes)...")
     # Define default paths for X and y, assuming they are in data/processed
     default_X_path = 'data/processed/processed_features.csv'
     default_y_path = 'data/processed/processed_target.csv'
 
     if not (os.path.exists(default_X_path) and os.path.exists(default_y_path)):
-        print(f"Error: Processed data not found at {default_X_path} or {default_y_path}.")
-        print("Please run the preprocessing script first (e.g., scripts/run_preprocessing.py).")
+        logger.error(f"Error: Processed data not found at {default_X_path} or {default_y_path}.")
+        logger.info("Please run the preprocessing script first (e.g., scripts/run_preprocessing.py).")
     else:
         train_churn_model(default_X_path, default_y_path)

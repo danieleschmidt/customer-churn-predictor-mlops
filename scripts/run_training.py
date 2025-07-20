@@ -3,6 +3,9 @@ import os
 
 from src.train_model import train_churn_model  # Ensure this import works
 from src.config import load_config
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def run_training(
@@ -45,11 +48,11 @@ def run_training(
     X_path = X_path or cfg["data"]["processed_features"]
     y_path = y_path or cfg["data"]["processed_target"]
 
-    print("Starting model training script...")
+    logger.info("Starting model training script...")
     if not (os.path.exists(X_path) and os.path.exists(y_path)):
-        print(f"Error: Processed data not found at {X_path} or {y_path}.")
-        print("Please ensure you have run the preprocessing script successfully.")
-        print(
+        logger.error(f"Error: Processed data not found at {X_path} or {y_path}.")
+        logger.info("Please ensure you have run the preprocessing script successfully.")
+        logger.info(
             "Expected files: processed_features.csv and processed_target.csv in data/processed/"
         )
         return None, None
@@ -64,8 +67,8 @@ def run_training(
         max_iter=max_iter,
         test_size=test_size,
     )
-    print(f"Training complete. Model saved to: {model_path}")
-    print(f"MLflow Run ID: {run_id}")
+    logger.info(f"Training complete. Model saved to: {model_path}")
+    logger.info(f"MLflow Run ID: {run_id}")
     return model_path, run_id
 
 
