@@ -5,6 +5,7 @@ from src.preprocess_data import preprocess
 from src.constants import PREPROCESSOR_PATH
 from src.config import load_config
 from src.logging_config import get_logger
+from src.path_config import get_path_config
 
 logger = get_logger(__name__)
 
@@ -22,9 +23,9 @@ def run_preprocessing() -> tuple[str, str]:
     processed_features_path = cfg["data"]["processed_features"]
     processed_target_path = cfg["data"]["processed_target"]
 
-    # Create directories if they don't exist
-    os.makedirs(os.path.dirname(processed_features_path), exist_ok=True)
-    os.makedirs(os.path.dirname(processed_target_path), exist_ok=True)
+    # Ensure all required directories exist
+    path_config = get_path_config()
+    path_config.ensure_directories()
 
     # Preprocess data
     logger.info(f"Loading raw data from {raw_data_path}...")

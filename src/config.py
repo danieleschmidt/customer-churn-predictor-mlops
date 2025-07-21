@@ -15,10 +15,11 @@ from .constants import (
     PROCESSED_FEATURES_PATH,
     PROCESSED_TARGET_PATH,
 )
+from .path_config import get_raw_data_path
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "data": {
-        "raw": "data/raw/customer_data.csv",
+        "raw": get_raw_data_path("customer_data.csv"),
         "processed_features": PROCESSED_FEATURES_PATH,
         "processed_target": PROCESSED_TARGET_PATH,
     },
