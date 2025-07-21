@@ -11,6 +11,7 @@ from typing import Tuple
 
 from .constants import MODEL_PATH, FEATURE_COLUMNS_PATH, RUN_ID_PATH, MODEL_ARTIFACT_PATH
 from src.logging_config import get_logger
+from .validation import safe_read_csv, DEFAULT_PATH_VALIDATOR, DataValidator, ValidationError
 
 logger = get_logger(__name__)
 
@@ -55,8 +56,21 @@ def train_churn_model(
         The path to the saved model and the MLflow run ID.
     """
     logger.info(f"Loading data from {X_path} and {y_path}...")
-    X: pd.DataFrame = pd.read_csv(X_path)
-    y: pd.Series = pd.read_csv(y_path).squeeze() # Use squeeze() to convert DataFrame column to Series
+    
+    try:
+        # Use safe CSV reading with validation
+        X: pd.DataFrame = safe_read_csv(X_path, validator=DEFAULT_PATH_VALIDATOR)
+        y_df: pd.DataFrame = safe_read_csv(y_path, validator=DEFAULT_PATH_VALIDATOR)
+        y: pd.Series = y_df.squeeze()  # Convert DataFrame column to Series
+        
+        # Validate data structure
+        DataValidator.validate_dataframe(X, min_rows=10)  # Ensure minimum training data
+        if len(y) != len(X):
+            raise ValidationError(f"Feature and target data length mismatch: {len(X)} vs {len(y)}")
+            
+    except ValidationError as e:
+        logger.error(f"Data validation failed: {e}")
+        raise
 
     # Split data
     logger.info("Splitting data into training and testing sets...")

@@ -4,6 +4,7 @@ import os
 from src.train_model import train_churn_model  # Ensure this import works
 from src.config import load_config
 from src.logging_config import get_logger
+from src.validation import DEFAULT_PATH_VALIDATOR, DEFAULT_ML_VALIDATOR, ValidationError
 
 logger = get_logger(__name__)
 
@@ -49,12 +50,26 @@ def run_training(
     y_path = y_path or cfg["data"]["processed_target"]
 
     logger.info("Starting model training script...")
-    if not (os.path.exists(X_path) and os.path.exists(y_path)):
-        logger.error(f"Error: Processed data not found at {X_path} or {y_path}.")
-        logger.info("Please ensure you have run the preprocessing script successfully.")
-        logger.info(
-            "Expected files: processed_features.csv and processed_target.csv in data/processed/"
-        )
+    
+    try:
+        # Validate input file paths
+        DEFAULT_PATH_VALIDATOR.validate_path(X_path, must_exist=True)
+        DEFAULT_PATH_VALIDATOR.validate_path(y_path, must_exist=True)
+        
+        # Validate hyperparameters
+        hyperparams = {
+            'solver': solver,
+            'C': C,
+            'penalty': penalty,
+            'random_state': random_state,
+            'max_iter': max_iter,
+            'test_size': test_size
+        }
+        validated_params = DEFAULT_ML_VALIDATOR.validate_model_hyperparameters(hyperparams)
+        logger.info(f"Validated hyperparameters: {validated_params}")
+        
+    except ValidationError as e:
+        logger.error(f"Validation failed: {e}")
         return None, None
 
     model_path, run_id = train_churn_model(
