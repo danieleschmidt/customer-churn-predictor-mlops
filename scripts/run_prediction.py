@@ -6,6 +6,7 @@ from typing import Optional
 from src.predict_churn import make_batch_predictions, make_prediction
 from src.config import load_config
 from src.logging_config import get_logger
+from src.validation import safe_read_csv, safe_write_csv, ValidationError, DEFAULT_PATH_VALIDATOR
 
 logger = get_logger(__name__)
 
@@ -19,18 +20,26 @@ def run_predictions(input_csv: str, output_csv: str, run_id: Optional[str] = Non
         output_csv: Path to save predictions
         run_id: Optional MLflow run ID for model artifacts
         batch_mode: If True, use optimized batch predictions (default: True)
+        
+    Raises:
+        ValidationError: If file paths or data validation fails
     """
-    if not os.path.exists(input_csv):
-        raise FileNotFoundError(f"Input file not found: {input_csv}")
-
-    df = pd.read_csv(input_csv)
+    try:
+        # Validate and read input CSV with security checks
+        df = safe_read_csv(input_csv, validator=DEFAULT_PATH_VALIDATOR)
+        
+        # Validate output path
+        DEFAULT_PATH_VALIDATOR.validate_path(output_csv, allow_create=True)
+        
+    except ValidationError as e:
+        logger.error(f"Validation failed: {e}")
+        raise
     
     if df.empty:
         # Handle empty DataFrame
         df["prediction"] = []
         df["probability"] = []
-        df.to_csv(output_csv, index=False)
-        logger.info(f"Saved empty predictions to {output_csv}")
+        safe_write_csv(df, output_csv, validator=DEFAULT_PATH_VALIDATOR)
         return
     
     if batch_mode:
@@ -59,8 +68,8 @@ def run_predictions(input_csv: str, output_csv: str, run_id: Optional[str] = Non
         df["prediction"] = predictions
         df["probability"] = probabilities
 
-    df.to_csv(output_csv, index=False)
-    logger.info(f"Saved predictions to {output_csv}")
+    # Use safe CSV writing with validation
+    safe_write_csv(df, output_csv, validator=DEFAULT_PATH_VALIDATOR)
 
 
 def main():

@@ -7,6 +7,7 @@ from scripts.run_evaluation import run_evaluation
 from scripts.run_pipeline import run_pipeline
 from src.monitor_performance import monitor_and_retrain
 from scripts.run_prediction import run_predictions
+from .validation import DEFAULT_PATH_VALIDATOR, ValidationError
 
 app = typer.Typer(help="Customer churn prediction command-line interface")
 
@@ -120,7 +121,14 @@ def predict(
     run_id: Optional[str] = None,
 ) -> None:
     """Generate predictions for a CSV of features."""
-    run_predictions(input_csv, output_csv, run_id=run_id)
+    try:
+        # Validate input paths before processing
+        DEFAULT_PATH_VALIDATOR.validate_path(input_csv, must_exist=True)
+        DEFAULT_PATH_VALIDATOR.validate_path(output_csv, allow_create=True)
+        run_predictions(input_csv, output_csv, run_id=run_id)
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(1)
 
 
 def main() -> None:
