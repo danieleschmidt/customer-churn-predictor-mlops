@@ -147,14 +147,15 @@
 - **Acceptance Criteria**: 80%+ test coverage for all core modules with unit and integration tests
 - **Completed**: 2025-07-22 - Created comprehensive test suites for all untested core modules: test_cli.py (17 test classes, 25+ test methods covering CLI commands, parameter handling, validation), test_constants.py (7 test classes, 31 test methods covering legacy constants, factory functions, environment handling), test_env_config.py (11 test classes, 34 test methods covering validation, error handling, configuration loading), enhanced test_logging_system.py with 4 additional test classes covering MLflow logging, decorators, auto-configuration
 
-### 12. Extract MLflow Utilities (WSJF: 1.5)
-**Files**: `predict_churn.py`, `monitor_performance.py`
+### 12. ✅ Extract MLflow Utilities (WSJF: 1.5) - COMPLETED
+**Files**: `predict_churn.py`, `monitor_performance.py`, `src/mlflow_utils.py`, `tests/test_mlflow_utils.py`
 - **Business Value**: 6 (maintainability)
 - **Time Criticality**: 5 (technical debt)
 - **Risk Reduction**: 7 (consistency)
 - **Job Size**: 4 (utility extraction)
 - **Description**: Create shared MLflow download utilities
 - **Acceptance Criteria**: Single source of truth for MLflow operations
+- **Completed**: 2025-07-22 - Created centralized MLflow utilities module with shared functions for model/artifact downloading, evaluation metrics logging, and MLflowArtifactManager context manager. Refactored predict_churn.py and monitor_performance.py to use shared utilities, eliminating code duplication. Added comprehensive test coverage with 11 test classes. Made MLflow imports conditional for better compatibility.
 
 ### 13. Implement CI/CD Pipeline (WSJF: 1.5)
 **Files**: `.github/workflows/main.yml`
@@ -216,6 +217,7 @@
 - ✅ Replace Generic Exception Handlers (WSJF: 1.8) - 2025-07-22
 - ✅ Remove Global State in Path Configuration (WSJF: 2.1) - 2025-07-22
 - ✅ Add Missing Test Coverage (WSJF: 1.6) - 2025-07-22
+- ✅ Extract MLflow Utilities (WSJF: 1.5) - 2025-07-22
 
 ---
 
