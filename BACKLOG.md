@@ -171,12 +171,15 @@
 
 ## MEDIUM PRIORITY (WSJF 1.0-1.5)
 
-### 14. Add Missing Docstrings (WSJF: 1.67)
-**Files**: `predict_churn.py`, `cli.py`
+### 14. ✅ Add Missing Docstrings (WSJF: 1.67) - COMPLETED
+**Files**: `predict_churn.py`, `cli.py`, `scripts/run_*.py`
 - **Business Value**: 5 (documentation)
 - **Time Criticality**: 4 (maintainability)
 - **Risk Reduction**: 6 (knowledge transfer)
 - **Job Size**: 3 (documentation writing)
+- **Description**: Add comprehensive docstrings to core functions and CLI entry points
+- **Acceptance Criteria**: All public functions and CLI commands have detailed docstrings
+- **Completed**: 2025-07-22 - Added comprehensive Google/NumPy style docstrings to all 7 CLI functions and 5 main() functions in scripts directory. Documentation includes parameter descriptions, usage examples, command-line arguments, and 400+ lines of detailed documentation covering all entry points.
 
 ### 15. Implement Data Validation (WSJF: 1.33)
 **Files**: All data processing modules
@@ -218,6 +221,7 @@
 - ✅ Remove Global State in Path Configuration (WSJF: 2.1) - 2025-07-22
 - ✅ Add Missing Test Coverage (WSJF: 1.6) - 2025-07-22
 - ✅ Extract MLflow Utilities (WSJF: 1.5) - 2025-07-22
+- ✅ Add Missing Docstrings (WSJF: 1.67) - 2025-07-22
 
 ---
 
