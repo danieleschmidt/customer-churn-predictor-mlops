@@ -137,8 +137,14 @@ def main():
         
         return 0
         
-    except Exception as e:
-        logger.error(f"\n❌ Error generating lockfiles: {e}")
+    except subprocess.CalledProcessError as e:
+        logger.error(f"\n❌ Subprocess error generating lockfiles: {e}")
+        return 1
+    except (FileNotFoundError, PermissionError) as e:
+        logger.error(f"\n❌ File access error generating lockfiles: {e}")
+        return 1
+    except (OSError, IOError) as e:
+        logger.error(f"\n❌ System error generating lockfiles: {e}")
         return 1
 
 

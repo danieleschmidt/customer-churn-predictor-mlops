@@ -294,8 +294,14 @@ def safe_read_csv(file_path: Union[str, Path],
     try:
         df = pd.read_csv(validated_path, **pandas_kwargs)
         return DataValidator.validate_dataframe(df)
-    except Exception as e:
+    except (FileNotFoundError, PermissionError) as e:
         raise ValidationError(f"Failed to read CSV {validated_path}: {e}")
+    except pd.errors.EmptyDataError as e:
+        raise ValidationError(f"CSV file is empty {validated_path}: {e}")
+    except pd.errors.ParserError as e:
+        raise ValidationError(f"Failed to parse CSV {validated_path}: {e}")
+    except (OSError, IOError) as e:
+        raise ValidationError(f"I/O error reading CSV {validated_path}: {e}")
 
 
 def safe_write_csv(df: pd.DataFrame, 
@@ -330,8 +336,10 @@ def safe_write_csv(df: pd.DataFrame,
         df.to_csv(validated_path, index=False, **pandas_kwargs)
         logger.info(f"Successfully wrote {len(df)} rows to {validated_path}")
         return validated_path
-    except Exception as e:
+    except (FileNotFoundError, PermissionError) as e:
         raise ValidationError(f"Failed to write CSV {validated_path}: {e}")
+    except (OSError, IOError) as e:
+        raise ValidationError(f"I/O error writing CSV {validated_path}: {e}")
 
 
 def safe_write_json(data: Any, 
@@ -368,8 +376,12 @@ def safe_write_json(data: Any,
             json.dump(data, f, **json_kwargs)
         logger.info(f"Successfully wrote JSON data to {validated_path}")
         return validated_path
-    except Exception as e:
+    except (FileNotFoundError, PermissionError) as e:
         raise ValidationError(f"Failed to write JSON {validated_path}: {e}")
+    except (TypeError, ValueError) as e:
+        raise ValidationError(f"JSON serialization error {validated_path}: {e}")
+    except (OSError, IOError) as e:
+        raise ValidationError(f"I/O error writing JSON {validated_path}: {e}")
 
 
 def safe_read_json(file_path: Union[str, Path],
@@ -399,8 +411,12 @@ def safe_read_json(file_path: Union[str, Path],
             data = json.load(f, **json_kwargs)
         logger.info(f"Successfully read JSON data from {validated_path}")
         return data
-    except Exception as e:
+    except (FileNotFoundError, PermissionError) as e:
         raise ValidationError(f"Failed to read JSON {validated_path}: {e}")
+    except json.JSONDecodeError as e:
+        raise ValidationError(f"Invalid JSON format {validated_path}: {e}")
+    except (OSError, IOError) as e:
+        raise ValidationError(f"I/O error reading JSON {validated_path}: {e}")
 
 
 def safe_write_text(text: str,
@@ -437,8 +453,12 @@ def safe_write_text(text: str,
             f.write(text)
         logger.info(f"Successfully wrote text data to {validated_path}")
         return validated_path
-    except Exception as e:
+    except (FileNotFoundError, PermissionError) as e:
         raise ValidationError(f"Failed to write text {validated_path}: {e}")
+    except UnicodeEncodeError as e:
+        raise ValidationError(f"Encoding error writing text {validated_path}: {e}")
+    except (OSError, IOError) as e:
+        raise ValidationError(f"I/O error writing text {validated_path}: {e}")
 
 
 def safe_read_text(file_path: Union[str, Path],
@@ -468,8 +488,12 @@ def safe_read_text(file_path: Union[str, Path],
             text = f.read()
         logger.info(f"Successfully read text data from {validated_path}")
         return text
-    except Exception as e:
+    except (FileNotFoundError, PermissionError) as e:
         raise ValidationError(f"Failed to read text {validated_path}: {e}")
+    except UnicodeDecodeError as e:
+        raise ValidationError(f"Encoding error reading text {validated_path}: {e}")
+    except (OSError, IOError) as e:
+        raise ValidationError(f"I/O error reading text {validated_path}: {e}")
 
 
 # Global default validator instances
