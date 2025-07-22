@@ -163,118 +163,216 @@ class PathConfig:
                 logger.debug(f"Ensured directory exists: {directory}")
 
 
-# Global configuration instance
-_global_config: Optional[PathConfig] = None
-
-
-def get_path_config() -> PathConfig:
+# Default configuration instance factory
+def get_default_path_config() -> PathConfig:
     """
-    Get the global path configuration instance.
+    Get a default path configuration instance.
+    
+    This creates a new PathConfig instance each time it's called.
+    For consistent behavior, applications should create their own
+    PathConfig instance and pass it around via dependency injection.
     
     Returns:
-        Global PathConfig instance
+        New PathConfig instance configured from environment if available,
+        otherwise with defaults
     """
-    global _global_config
-    if _global_config is None:
-        _global_config = PathConfig()
-    return _global_config
+    # Check if environment variables are set, use them if available
+    if any(key.startswith('CHURN_') for key in os.environ):
+        return PathConfig.from_environment()
+    return PathConfig()
 
 
-def configure_paths_from_env() -> None:
-    """Configure global paths from environment variables."""
-    global _global_config
-    _global_config = PathConfig.from_environment()
-    logger.info("Global path configuration updated from environment")
-
-
-def set_path_config(config: PathConfig) -> None:
+# Backwards compatibility function (deprecated)
+def configure_paths_from_env() -> PathConfig:
     """
-    Set the global path configuration.
+    Configure paths from environment variables.
+    
+    Returns:
+        PathConfig instance configured from environment
+        
+    Note: This function is deprecated. Use PathConfig.from_environment() 
+    and dependency injection instead.
+    """
+    logger.warning(
+        "configure_paths_from_env() is deprecated. "
+        "Use PathConfig.from_environment() and dependency injection instead."
+    )
+    return PathConfig.from_environment()
+
+
+# Convenience functions for common paths with optional config parameter
+def get_model_path(
+    filename: str = "churn_model.joblib", 
+    config: Optional[PathConfig] = None
+) -> str:
+    """
+    Get model file path.
     
     Args:
-        config: PathConfig instance to use globally
+        filename: Model filename
+        config: PathConfig instance (creates default if None)
+        
+    Returns:
+        Full path to model file
     """
-    global _global_config
-    _global_config = config
-    logger.info("Global path configuration updated")
+    if config is None:
+        config = get_default_path_config()
+    return config.get_model_path(filename)
 
 
-# Convenience functions for common paths
-def get_model_path(filename: str = "churn_model.joblib") -> str:
-    """Get model file path."""
-    return get_path_config().get_model_path(filename)
+def get_data_path(*path_parts: str, config: Optional[PathConfig] = None) -> str:
+    """
+    Get data file path.
+    
+    Args:
+        *path_parts: Path components (subdirs and filename)
+        config: PathConfig instance (creates default if None)
+        
+    Returns:
+        Full path to data file
+    """
+    if config is None:
+        config = get_default_path_config()
+    return config.get_data_path(*path_parts)
 
 
-def get_data_path(*path_parts: str) -> str:
-    """Get data file path."""
-    return get_path_config().get_data_path(*path_parts)
+def get_log_path(filename: str, config: Optional[PathConfig] = None) -> str:
+    """
+    Get log file path.
+    
+    Args:
+        filename: Log filename
+        config: PathConfig instance (creates default if None)
+        
+    Returns:
+        Full path to log file
+    """
+    if config is None:
+        config = get_default_path_config()
+    return config.get_log_path(filename)
 
 
-def get_log_path(filename: str) -> str:
-    """Get log file path."""
-    return get_path_config().get_log_path(filename)
-
-
-def get_processed_path(filename: str) -> str:
-    """Get processed data file path."""
-    return get_path_config().get_processed_path(filename)
+def get_processed_path(filename: str, config: Optional[PathConfig] = None) -> str:
+    """
+    Get processed data file path.
+    
+    Args:
+        filename: Processed data filename
+        config: PathConfig instance (creates default if None)
+        
+    Returns:
+        Full path to processed data file
+    """
+    if config is None:
+        config = get_default_path_config()
+    return config.get_processed_path(filename)
 
 
 # Standard path getters with environment variable support
-def get_feature_columns_path() -> str:
-    """Get feature columns JSON file path."""
+def get_feature_columns_path(config: Optional[PathConfig] = None) -> str:
+    """
+    Get feature columns JSON file path.
+    
+    Args:
+        config: PathConfig instance (creates default if None)
+        
+    Returns:
+        Full path to feature columns file
+    """
     # Check for specific environment variable first
     env_path = os.getenv('CHURN_FEATURE_COLUMNS_PATH')
     if env_path:
         return env_path
-    return get_model_path("feature_columns.json")
+    return get_model_path("feature_columns.json", config=config)
 
 
-def get_preprocessor_path() -> str:
-    """Get preprocessor file path."""
+def get_preprocessor_path(config: Optional[PathConfig] = None) -> str:
+    """
+    Get preprocessor file path.
+    
+    Args:
+        config: PathConfig instance (creates default if None)
+        
+    Returns:
+        Full path to preprocessor file
+    """
     env_path = os.getenv('CHURN_PREPROCESSOR_PATH')
     if env_path:
         return env_path
-    return get_model_path("preprocessor.joblib")
+    return get_model_path("preprocessor.joblib", config=config)
 
 
-def get_processed_features_path() -> str:
-    """Get processed features CSV file path."""
+def get_processed_features_path(config: Optional[PathConfig] = None) -> str:
+    """
+    Get processed features CSV file path.
+    
+    Args:
+        config: PathConfig instance (creates default if None)
+        
+    Returns:
+        Full path to processed features file
+    """
     env_path = os.getenv('CHURN_PROCESSED_FEATURES_PATH')
     if env_path:
         return env_path
-    return get_processed_path("processed_features.csv")
+    return get_processed_path("processed_features.csv", config=config)
 
 
-def get_processed_target_path() -> str:
-    """Get processed target CSV file path."""
+def get_processed_target_path(config: Optional[PathConfig] = None) -> str:
+    """
+    Get processed target CSV file path.
+    
+    Args:
+        config: PathConfig instance (creates default if None)
+        
+    Returns:
+        Full path to processed target file
+    """
     env_path = os.getenv('CHURN_PROCESSED_TARGET_PATH')
     if env_path:
         return env_path
-    return get_processed_path("processed_target.csv")
+    return get_processed_path("processed_target.csv", config=config)
 
 
-def get_mlflow_run_id_path() -> str:
-    """Get MLflow run ID file path."""
+def get_mlflow_run_id_path(config: Optional[PathConfig] = None) -> str:
+    """
+    Get MLflow run ID file path.
+    
+    Args:
+        config: PathConfig instance (creates default if None)
+        
+    Returns:
+        Full path to MLflow run ID file
+    """
     env_path = os.getenv('CHURN_MLFLOW_RUN_ID_PATH')
     if env_path:
         return env_path
-    return get_model_path("mlflow_run_id.txt")
+    return get_model_path("mlflow_run_id.txt", config=config)
 
 
-def get_raw_data_path(filename: str = "customer_data.csv") -> str:
-    """Get raw data file path."""
+def get_raw_data_path(
+    filename: str = "customer_data.csv", 
+    config: Optional[PathConfig] = None
+) -> str:
+    """
+    Get raw data file path.
+    
+    Args:
+        filename: Raw data filename
+        config: PathConfig instance (creates default if None)
+        
+    Returns:
+        Full path to raw data file
+    """
     env_path = os.getenv('CHURN_RAW_DATA_PATH')
     if env_path:
         return env_path
-    return get_data_path("raw", filename)
+    return get_data_path("raw", filename, config=config)
 
 
-# Environment configuration on module import
-# This allows immediate use of environment variables if set
-if any(key.startswith('CHURN_') for key in os.environ):
-    configure_paths_from_env()
-    logger.info("Auto-configured paths from environment variables on import")
+# Note: Environment configuration is now handled per-instance basis
+# The get_default_path_config() function automatically detects and uses
+# environment variables when available
 
 
 def get_environment_example() -> str:
