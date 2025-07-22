@@ -5,6 +5,7 @@ import mlflow
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 import json
 from typing import Union, Tuple, Dict, Any, Optional
+from .validation import safe_read_csv, ValidationError
 
 from src.train_model import train_churn_model
 from src.predict_churn import _get_run_id
@@ -60,8 +61,11 @@ def evaluate_model(
     else:
         raise FileNotFoundError(f"Model not found at {model_path}")
 
-    X = pd.read_csv(X_path)
-    y = pd.read_csv(y_path).squeeze()
+    try:
+        X = safe_read_csv(X_path)
+        y = safe_read_csv(y_path).squeeze()
+    except ValidationError as e:
+        raise ValueError(f"Failed to read input data safely: {e}") from e
 
     y_pred = model.predict(X)
     accuracy = accuracy_score(y, y_pred)

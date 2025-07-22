@@ -12,6 +12,9 @@ import re
 import sys
 from pathlib import Path
 from typing import List, Dict, Set, Tuple
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def parse_requirements_file(file_path: Path) -> Dict[str, str]:
@@ -42,7 +45,7 @@ def parse_requirements_file(file_path: Path) -> Dict[str, str]:
                 package, version = line.split('>=', 1)
                 requirements[package.strip()] = f">={version.strip()}"
             else:
-                print(f"⚠️  Warning: Unpinned dependency at {file_path}:{line_num}: {line}")
+                logger.warning(f"⚠️  Warning: Unpinned dependency at {file_path}:{line_num}: {line}")
     
     return requirements
 
@@ -113,8 +116,8 @@ def main():
     """Main validation function."""
     root_dir = Path(__file__).parent
     
-    print("🔍 Dependency Validation Report")
-    print("=" * 50)
+    logger.info("🔍 Dependency Validation Report")
+    logger.info("=" * 50)
     
     # Parse requirements files
     prod_reqs = parse_requirements_file(root_dir / "requirements.txt")
@@ -144,19 +147,19 @@ def main():
     
     # Report results
     if all_issues:
-        print("\n📋 Issues Found:")
+        logger.warning("\n📋 Issues Found:")
         for issue in all_issues:
-            print(f"  {issue}")
+            logger.warning(f"  {issue}")
     else:
-        print("\n✅ All dependency validations passed!")
+        logger.info("\n✅ All dependency validations passed!")
     
     # Summary statistics
-    print(f"\n📊 Summary:")
-    print(f"  Production packages: {len(prod_reqs)}")
-    print(f"  Development packages: {len(dev_reqs)}")
-    print(f"  Production lockfile entries: {len(prod_lock)}")
-    print(f"  Development lockfile entries: {len(dev_lock)}")
-    print(f"  Issues found: {len(all_issues)}")
+    logger.info(f"\n📊 Summary:")
+    logger.info(f"  Production packages: {len(prod_reqs)}")
+    logger.info(f"  Development packages: {len(dev_reqs)}")
+    logger.info(f"  Production lockfile entries: {len(prod_lock)}")
+    logger.info(f"  Development lockfile entries: {len(dev_lock)}")
+    logger.info(f"  Issues found: {len(all_issues)}")
     
     # Return exit code
     return len(all_issues)

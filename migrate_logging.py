@@ -8,6 +8,9 @@ This script replaces all print() calls with proper logging throughout the codeba
 import re
 import os
 from pathlib import Path
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def add_logging_import(content: str, module_path: str) -> str:
@@ -98,15 +101,15 @@ def migrate_file(file_path: Path) -> bool:
         
         # Check if file already has logging
         if 'logger = get_logger(__name__)' in content:
-            print(f"Skipping {file_path} - already migrated")
+            logger.info(f"Skipping {file_path} - already migrated")
             return False
         
         # Check if file has print statements
         if 'print(' not in content:
-            print(f"Skipping {file_path} - no print statements")
+            logger.info(f"Skipping {file_path} - no print statements")
             return False
         
-        print(f"Migrating {file_path}...")
+        logger.info(f"Migrating {file_path}...")
         
         # Add logging imports
         modified_content = add_logging_import(content, str(file_path))
@@ -121,7 +124,7 @@ def migrate_file(file_path: Path) -> bool:
         return True
         
     except Exception as e:
-        print(f"Error migrating {file_path}: {e}")
+        logger.error(f"Error migrating {file_path}: {e}")
         return False
 
 
@@ -145,7 +148,7 @@ def main():
         if migrate_file(file_path):
             migrated_count += 1
     
-    print(f"\nMigration complete! Migrated {migrated_count} files.")
+    logger.info(f"\nMigration complete! Migrated {migrated_count} files.")
 
 
 if __name__ == "__main__":
