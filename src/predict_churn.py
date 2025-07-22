@@ -152,9 +152,7 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
         if preprocessor is not None:
             if columns is None:
                 columns = list(preprocessor.get_feature_names_out())
-                os.makedirs(os.path.dirname(FEATURE_COLUMNS_PATH), exist_ok=True)
-                with open(FEATURE_COLUMNS_PATH, "w") as f:
-                    json.dump(columns, f)
+                safe_write_json(columns, FEATURE_COLUMNS_PATH)
             
             # Check if input is raw or processed data
             raw_features = set(getattr(preprocessor, "feature_names_in_", []))
@@ -285,9 +283,7 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
             with open(path) as f:
                 columns = json.load(f)
             # Persist for future predictions
-            os.makedirs(os.path.dirname(FEATURE_COLUMNS_PATH), exist_ok=True)
-            with open(FEATURE_COLUMNS_PATH, "w") as out_f:
-                json.dump(columns, out_f)
+            safe_write_json(columns, FEATURE_COLUMNS_PATH)
         except (ImportError, FileNotFoundError, json.JSONDecodeError, OSError, RuntimeError) as e:
             logger.error(f"Error downloading feature columns from MLflow: {e}")
             columns = None
@@ -315,9 +311,7 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
         if preprocessor is not None:
             if columns is None:
                 columns = list(preprocessor.get_feature_names_out())
-                os.makedirs(os.path.dirname(FEATURE_COLUMNS_PATH), exist_ok=True)
-                with open(FEATURE_COLUMNS_PATH, "w") as f:
-                    json.dump(columns, f)
+                safe_write_json(columns, FEATURE_COLUMNS_PATH)
 
             # Determine whether input_dict is raw or already processed
             raw_features = set(getattr(preprocessor, "feature_names_in_", []))
