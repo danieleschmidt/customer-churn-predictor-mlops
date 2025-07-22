@@ -123,8 +123,14 @@ def migrate_file(file_path: Path) -> bool:
         
         return True
         
-    except Exception as e:
-        logger.error(f"Error migrating {file_path}: {e}")
+    except (FileNotFoundError, PermissionError) as e:
+        logger.error(f"File access error migrating {file_path}: {e}")
+        return False
+    except UnicodeDecodeError as e:
+        logger.error(f"Encoding error migrating {file_path}: {e}")
+        return False
+    except (OSError, IOError) as e:
+        logger.error(f"I/O error migrating {file_path}: {e}")
         return False
 
 

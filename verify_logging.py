@@ -56,8 +56,12 @@ def check_file_for_logging(file_path: Path) -> dict:
         else:
             result['status'] = 'check_manually'
             
-    except Exception as e:
-        result['status'] = f'error: {e}'
+    except (FileNotFoundError, PermissionError) as e:
+        result['status'] = f'file_error: {e}'
+    except UnicodeDecodeError as e:
+        result['status'] = f'encoding_error: {e}'
+    except (OSError, IOError) as e:
+        result['status'] = f'io_error: {e}'
     
     return result
 

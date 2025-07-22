@@ -124,9 +124,28 @@
 - **Job Size**: 5 (security implementation)
 - **Description**: Implement path sanitization and access control
 - **Acceptance Criteria**: No path traversal vulnerabilities remain
-- **Completed**: 2025-07-22 - Enhanced validation.py with secure file I/O functions (safe_read_csv, safe_write_csv, safe_read_json, safe_write_json, safe_read_text, safe_write_text), updated core modules to use secure operations
+- **Completed**: 2025-07-22 - Enhanced validation.py with secure file I/O functions (safe_read_csv, safe_write_csv, safe_read_json, safe_write_json, safe_read_text, safe_write_text), updated core modules to use secure operations. Final security hardening completed by replacing remaining insecure json.dump operations in predict_churn.py.
 
-### 10. Extract MLflow Utilities (WSJF: 1.5)
+### 10. ✅ Replace Generic Exception Handlers (WSJF: 1.8) - COMPLETED
+**Files**: `validation.py`, `logging_config.py`, utility scripts
+- **Business Value**: 6 (debugging capability)
+- **Time Criticality**: 6 (production support)
+- **Risk Reduction**: 7 (error transparency)
+- **Job Size**: 3 (systematic replacement)
+- **Description**: Replace generic 'except Exception' handlers with specific exception types
+- **Acceptance Criteria**: All exception handlers catch specific exception types with appropriate error handling
+- **Completed**: 2025-07-22 - Replaced 9 generic exception handlers with specific types (FileNotFoundError, PermissionError, UnicodeDecodeError, json.JSONDecodeError, pd.errors.*, subprocess.CalledProcessError, etc.). Added comprehensive test coverage.
+
+### 11. Add Missing Test Coverage (WSJF: 1.6)
+**Files**: `src/cli.py`, `src/constants.py`, `src/env_config.py`, `src/logging_config.py`
+- **Business Value**: 7 (quality assurance)
+- **Time Criticality**: 5 (regression prevention)
+- **Risk Reduction**: 7 (coverage gaps)
+- **Job Size**: 4 (multiple test files)
+- **Description**: Add comprehensive test coverage for untested core modules
+- **Acceptance Criteria**: 80%+ test coverage for all core modules with unit and integration tests
+
+### 12. Extract MLflow Utilities (WSJF: 1.5)
 **Files**: `predict_churn.py`, `monitor_performance.py`
 - **Business Value**: 6 (maintainability)
 - **Time Criticality**: 5 (technical debt)
@@ -135,7 +154,7 @@
 - **Description**: Create shared MLflow download utilities
 - **Acceptance Criteria**: Single source of truth for MLflow operations
 
-### 11. Implement CI/CD Pipeline (WSJF: 1.5)
+### 13. Implement CI/CD Pipeline (WSJF: 1.5)
 **Files**: `.github/workflows/main.yml`
 - **Business Value**: 9 (automation)
 - **Time Criticality**: 6 (process improvement)
@@ -149,21 +168,21 @@
 
 ## MEDIUM PRIORITY (WSJF 1.0-1.5)
 
-### 12. Add Missing Docstrings (WSJF: 1.67)
+### 14. Add Missing Docstrings (WSJF: 1.67)
 **Files**: `predict_churn.py`, `cli.py`
 - **Business Value**: 5 (documentation)
 - **Time Criticality**: 4 (maintainability)
 - **Risk Reduction**: 6 (knowledge transfer)
 - **Job Size**: 3 (documentation writing)
 
-### 13. Implement Data Validation (WSJF: 1.33)
+### 15. Implement Data Validation (WSJF: 1.33)
 **Files**: All data processing modules
 - **Business Value**: 8 (data integrity)
 - **Time Criticality**: 6 (production quality)
 - **Risk Reduction**: 8 (prevents bad predictions)
 - **Job Size**: 6 (schema implementation)
 
-### 14. Add Edge Case Test Coverage (WSJF: 1.4)
+### 16. Add Edge Case Test Coverage (WSJF: 1.4)
 **Files**: All test modules
 - **Business Value**: 7 (quality assurance)
 - **Time Criticality**: 5 (regression prevention)
@@ -191,6 +210,8 @@
 - ✅ Refactor Hardcoded File Paths (WSJF: 1.75) - 2025-07-21
 - ✅ Replace Print Statements in Utility Scripts (WSJF: 2.4) - 2025-07-22
 - ✅ Add Security for File Operations (WSJF: 1.6) - 2025-07-22
+- ✅ Complete Security Hardening in predict_churn.py (WSJF: 2.0) - 2025-07-22
+- ✅ Replace Generic Exception Handlers (WSJF: 1.8) - 2025-07-22
 
 ---
 

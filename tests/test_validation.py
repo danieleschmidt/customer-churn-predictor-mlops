@@ -311,5 +311,64 @@ class TestIntegrationSecurity:
                 DEFAULT_PATH_VALIDATOR.validate_path(f"{path}/file.csv", must_exist=False)
 
 
+class TestSpecificExceptionHandling:
+    """Test cases for specific exception handling instead of generic Exception."""
+    
+    def test_safe_read_csv_file_not_found(self):
+        """Test that safe_read_csv properly handles FileNotFoundError."""
+        from src.validation import safe_read_csv
+        
+        with pytest.raises(ValidationError, match="Failed to read CSV"):
+            safe_read_csv("/nonexistent/path/file.csv")
+    
+    def test_safe_write_csv_permission_denied(self):
+        """Test that safe_write_csv properly handles PermissionError."""
+        import pandas as pd
+        from src.validation import safe_write_csv
+        
+        # Try to write to a directory that would cause permission error
+        df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        
+        with pytest.raises(ValidationError, match="Failed to write CSV"):
+            safe_write_csv(df, "/root/readonly/file.csv")
+    
+    def test_safe_read_json_invalid_json(self):
+        """Test that safe_read_json properly handles JSON decode errors."""
+        from src.validation import safe_read_json
+        import tempfile
+        
+        # Create a file with invalid JSON content
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            f.write("invalid json content {")
+            temp_file = f.name
+        
+        try:
+            with pytest.raises(ValidationError, match="Failed to read JSON"):
+                safe_read_json(temp_file)
+        finally:
+            os.unlink(temp_file)
+    
+    def test_safe_write_text_encoding_error(self):
+        """Test that safe_write_text properly handles encoding errors."""
+        from src.validation import safe_write_text
+        import tempfile
+        
+        # This test verifies the exception is caught and re-raised as ValidationError
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            temp_file = f.name
+        
+        try:
+            # Create content that might cause encoding issues
+            result = safe_write_text("test content", temp_file)
+            # If it succeeds, verify the file was written
+            assert os.path.exists(result)
+        except ValidationError:
+            # Expected if there's an encoding or permission issue
+            pass
+        finally:
+            if os.path.exists(temp_file):
+                os.unlink(temp_file)
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

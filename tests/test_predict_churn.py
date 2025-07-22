@@ -4,6 +4,7 @@ import tempfile
 import unittest
 import pandas as pd
 import mlflow
+from unittest.mock import patch, call
 
 from src.train_model import train_churn_model
 from src.predict_churn import make_prediction, MODEL_PATH, FEATURE_COLUMNS_PATH, RUN_ID_PATH
@@ -99,6 +100,32 @@ class TestPredictChurn(unittest.TestCase):
         input_dict = X.iloc[0].to_dict()
         pred, prob = make_prediction(input_dict, run_id=run_id)
         self.assertTrue(os.path.exists(MODEL_PATH))
+        self.assertIn(pred, [0, 1])
+        self.assertGreaterEqual(prob, 0.0)
+        self.assertLessEqual(prob, 1.0)
+
+    @patch('src.predict_churn.safe_write_json')
+    def test_prediction_uses_secure_file_operations(self, mock_safe_write):
+        """Test that predict_churn uses safe_write_json instead of direct file operations"""
+        # Train model first to set up MLflow run
+        model_path, run_id = train_churn_model(self.X_path, self.y_path)
+        
+        # Remove feature columns to trigger download and writing
+        if os.path.exists(FEATURE_COLUMNS_PATH):
+            os.remove(FEATURE_COLUMNS_PATH)
+        
+        # Make a prediction which should trigger secure file writing
+        X = pd.read_csv(self.X_path)
+        input_dict = X.iloc[0].to_dict()
+        pred, prob = make_prediction(input_dict)
+        
+        # Verify that safe_write_json was called instead of direct file operations
+        mock_safe_write.assert_called()
+        # Check that the call was made with the feature columns path
+        call_args = mock_safe_write.call_args_list
+        self.assertTrue(any(FEATURE_COLUMNS_PATH in str(call) for call in call_args))
+        
+        # Verify prediction still works correctly
         self.assertIn(pred, [0, 1])
         self.assertGreaterEqual(prob, 0.0)
         self.assertLessEqual(prob, 1.0)
