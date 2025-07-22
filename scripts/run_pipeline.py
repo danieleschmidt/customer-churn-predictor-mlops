@@ -79,6 +79,46 @@ def run_pipeline(
 
 
 def main():
+    """
+    Command-line interface for running the complete churn prediction pipeline.
+    
+    This script executes the entire machine learning pipeline from raw data
+    to trained model in a single command. It sequentially runs preprocessing,
+    model training, and evaluation steps with consistent parameters and
+    data splits.
+    
+    This is equivalent to running the preprocess, train, and evaluate scripts
+    in sequence, but ensures parameter consistency and eliminates the need
+    for intermediate manual steps.
+    
+    Command-line Arguments
+    ----------------------
+    --raw_path : str
+        Path to raw customer data CSV file (default from config)
+    --solver : str
+        Logistic regression solver algorithm (default: 'liblinear')
+    --C : float
+        Inverse of regularization strength (default: 1.0)
+    --penalty : str
+        Regularization penalty type (default: 'l2')
+    --random_state : int
+        Random seed for reproducible results (default: 42)
+    --max_iter : int
+        Maximum training iterations (default: 100)
+    --test_size : float
+        Proportion of data for testing (default: 0.2)
+    
+    Examples
+    --------
+    Run full pipeline with default settings:
+    $ python scripts/run_pipeline.py
+    
+    Run with custom hyperparameters:
+    $ python scripts/run_pipeline.py --C 0.5 --penalty l1 --max_iter 200
+    
+    Use custom data source:
+    $ python scripts/run_pipeline.py --raw_path /path/to/custom_data.csv
+    """
     parser = argparse.ArgumentParser(description="Run full churn prediction pipeline")
     cfg = load_config()
     parser.add_argument(

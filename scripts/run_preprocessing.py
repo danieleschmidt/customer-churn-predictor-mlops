@@ -65,6 +65,33 @@ def run_preprocessing(path_config: Optional[PathConfig] = None) -> tuple[str, st
 
 
 def main():
+    """
+    Command-line interface for preprocessing raw customer data.
+    
+    This script serves as the entry point for the data preprocessing pipeline.
+    It loads raw customer data from the configured source, performs comprehensive
+    data cleaning and feature engineering, and saves the processed datasets
+    for model training.
+    
+    The preprocessing pipeline includes:
+    - Loading raw customer data from CSV
+    - Data cleaning and missing value handling
+    - Feature engineering and encoding
+    - Data splitting into training and test sets
+    - Saving processed datasets to the configured output location
+    
+    No command-line arguments are required; all configuration is loaded
+    from the application configuration file.
+    
+    Examples
+    --------
+    Run the preprocessing pipeline:
+    $ python scripts/run_preprocessing.py
+    
+    See Also
+    --------
+    src.preprocess_data.preprocess : The core preprocessing function
+    """
     run_preprocessing()
 
 

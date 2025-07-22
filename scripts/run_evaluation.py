@@ -42,6 +42,44 @@ def run_evaluation(
 
 
 def main():
+    """
+    Command-line interface for evaluating a trained churn prediction model.
+    
+    This script evaluates the performance of a trained model on test data,
+    computing accuracy, F1-score, and optionally a detailed classification
+    report. Results can be saved to a file and are automatically logged
+    to MLflow if available.
+    
+    The script supports loading models from local files or downloading
+    them from MLflow using a run ID. It also handles preprocessing pipeline
+    artifacts if they were used during training.
+    
+    Command-line Arguments
+    ----------------------
+    --model_path : str
+        Path to the trained model file (default from config)
+    --X_path : str
+        Path to processed features CSV for evaluation (default from config)
+    --y_path : str
+        Path to processed target CSV for evaluation (default from config)
+    --output : str
+        Path to save evaluation results (optional)
+    --run_id : str
+        MLflow run ID to download model from if not found locally
+    --detailed : flag
+        Generate detailed classification report with per-class metrics
+    
+    Examples
+    --------
+    Evaluate with default settings:
+    $ python scripts/run_evaluation.py
+    
+    Evaluate with detailed report:
+    $ python scripts/run_evaluation.py --detailed --output evaluation_report.txt
+    
+    Evaluate model from MLflow:
+    $ python scripts/run_evaluation.py --run_id abc123 --detailed
+    """
     parser = argparse.ArgumentParser(description="Evaluate trained churn model")
     cfg = load_config()
     parser.add_argument(

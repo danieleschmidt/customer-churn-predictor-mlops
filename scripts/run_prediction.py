@@ -73,6 +73,41 @@ def run_predictions(input_csv: str, output_csv: str, run_id: Optional[str] = Non
 
 
 def main():
+    """
+    Command-line interface for generating customer churn predictions.
+    
+    This script provides a command-line interface for making batch predictions
+    on customer data using a trained churn prediction model. It supports both
+    batch predictions (recommended for large datasets) and row-by-row predictions
+    for compatibility with different data processing workflows.
+    
+    The script loads a trained model and generates predictions for customers
+    provided in a CSV file. Output includes both binary predictions (0/1)
+    and churn probabilities for each customer.
+    
+    Command-line Arguments
+    ----------------------
+    input_csv : str
+        Path to CSV file containing customer features for prediction.
+        Defaults to processed features from config if not specified.
+    --output_csv : str
+        Path where prediction results will be saved (default: 'predictions.csv')
+    --run_id : str
+        MLflow run ID to download model artifacts from if model not found locally
+    --no-batch : flag
+        Use row-by-row predictions instead of optimized batch predictions
+    
+    Examples
+    --------
+    Generate predictions with default settings:
+    $ python scripts/run_prediction.py
+    
+    Predict on custom input file:
+    $ python scripts/run_prediction.py customer_data.csv --output_csv results.csv
+    
+    Use specific MLflow model:
+    $ python scripts/run_prediction.py --run_id abc123 --output_csv predictions.csv
+    """
     parser = argparse.ArgumentParser(
         description="Run churn predictions on a CSV file of processed features."
     )
