@@ -126,7 +126,7 @@
 - **Acceptance Criteria**: No path traversal vulnerabilities remain
 - **Completed**: 2025-07-22 - Enhanced validation.py with secure file I/O functions (safe_read_csv, safe_write_csv, safe_read_json, safe_write_json, safe_read_text, safe_write_text), updated core modules to use secure operations. Final security hardening completed by replacing remaining insecure json.dump operations in predict_churn.py.
 
-### 10. Replace Generic Exception Handlers (WSJF: 1.8)
+### 10. ✅ Replace Generic Exception Handlers (WSJF: 1.8) - COMPLETED
 **Files**: `validation.py`, `logging_config.py`, utility scripts
 - **Business Value**: 6 (debugging capability)
 - **Time Criticality**: 6 (production support)
@@ -134,6 +134,7 @@
 - **Job Size**: 3 (systematic replacement)
 - **Description**: Replace generic 'except Exception' handlers with specific exception types
 - **Acceptance Criteria**: All exception handlers catch specific exception types with appropriate error handling
+- **Completed**: 2025-07-22 - Replaced 9 generic exception handlers with specific types (FileNotFoundError, PermissionError, UnicodeDecodeError, json.JSONDecodeError, pd.errors.*, subprocess.CalledProcessError, etc.). Added comprehensive test coverage.
 
 ### 11. Add Missing Test Coverage (WSJF: 1.6)
 **Files**: `src/cli.py`, `src/constants.py`, `src/env_config.py`, `src/logging_config.py`
@@ -210,6 +211,7 @@
 - ✅ Replace Print Statements in Utility Scripts (WSJF: 2.4) - 2025-07-22
 - ✅ Add Security for File Operations (WSJF: 1.6) - 2025-07-22
 - ✅ Complete Security Hardening in predict_churn.py (WSJF: 2.0) - 2025-07-22
+- ✅ Replace Generic Exception Handlers (WSJF: 1.8) - 2025-07-22
 
 ---
 
