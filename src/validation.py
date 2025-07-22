@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Type
 import pandas as pd
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -331,6 +332,144 @@ def safe_write_csv(df: pd.DataFrame,
         return validated_path
     except Exception as e:
         raise ValidationError(f"Failed to write CSV {validated_path}: {e}")
+
+
+def safe_write_json(data: Any, 
+                    file_path: Union[str, Path],
+                    validator: Optional[PathValidator] = None,
+                    **json_kwargs) -> Path:
+    """
+    Safely write data to JSON file with path validation.
+    
+    Args:
+        data: Data to write as JSON
+        file_path: Output path for JSON file
+        validator: PathValidator instance (creates default if None)
+        **json_kwargs: Additional arguments for json.dump
+        
+    Returns:
+        Validated output path
+        
+    Raises:
+        ValidationError: If validation fails
+    """
+    if validator is None:
+        validator = PathValidator()
+    
+    # Validate output path
+    validated_path = validator.validate_path(file_path, allow_create=True)
+    
+    # Set secure defaults for JSON serialization
+    json_kwargs.setdefault('ensure_ascii', True)
+    json_kwargs.setdefault('separators', (',', ':'))  # No extra spaces
+    
+    try:
+        with open(validated_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, **json_kwargs)
+        logger.info(f"Successfully wrote JSON data to {validated_path}")
+        return validated_path
+    except Exception as e:
+        raise ValidationError(f"Failed to write JSON {validated_path}: {e}")
+
+
+def safe_read_json(file_path: Union[str, Path],
+                   validator: Optional[PathValidator] = None,
+                   **json_kwargs) -> Any:
+    """
+    Safely read JSON file with path validation.
+    
+    Args:
+        file_path: Path to JSON file
+        validator: PathValidator instance (creates default if None)
+        **json_kwargs: Additional arguments for json.load
+        
+    Returns:
+        Data loaded from JSON
+        
+    Raises:
+        ValidationError: If validation fails
+    """
+    if validator is None:
+        validator = PathValidator()
+    
+    validated_path = validator.validate_path(file_path, must_exist=True)
+    
+    try:
+        with open(validated_path, 'r', encoding='utf-8') as f:
+            data = json.load(f, **json_kwargs)
+        logger.info(f"Successfully read JSON data from {validated_path}")
+        return data
+    except Exception as e:
+        raise ValidationError(f"Failed to read JSON {validated_path}: {e}")
+
+
+def safe_write_text(text: str,
+                    file_path: Union[str, Path],
+                    validator: Optional[PathValidator] = None,
+                    encoding: str = 'utf-8') -> Path:
+    """
+    Safely write text to file with path validation.
+    
+    Args:
+        text: Text content to write
+        file_path: Output path for text file
+        validator: PathValidator instance (creates default if None)
+        encoding: Text encoding (default: utf-8)
+        
+    Returns:
+        Validated output path
+        
+    Raises:
+        ValidationError: If validation fails
+    """
+    if validator is None:
+        validator = PathValidator()
+    
+    # Validate text content
+    if not isinstance(text, str):
+        raise ValidationError(f"Text content must be string, got {type(text)}")
+    
+    # Validate output path
+    validated_path = validator.validate_path(file_path, allow_create=True)
+    
+    try:
+        with open(validated_path, 'w', encoding=encoding) as f:
+            f.write(text)
+        logger.info(f"Successfully wrote text data to {validated_path}")
+        return validated_path
+    except Exception as e:
+        raise ValidationError(f"Failed to write text {validated_path}: {e}")
+
+
+def safe_read_text(file_path: Union[str, Path],
+                   validator: Optional[PathValidator] = None,
+                   encoding: str = 'utf-8') -> str:
+    """
+    Safely read text file with path validation.
+    
+    Args:
+        file_path: Path to text file
+        validator: PathValidator instance (creates default if None)
+        encoding: Text encoding (default: utf-8)
+        
+    Returns:
+        Text content from file
+        
+    Raises:
+        ValidationError: If validation fails
+    """
+    if validator is None:
+        validator = PathValidator()
+    
+    validated_path = validator.validate_path(file_path, must_exist=True)
+    
+    try:
+        with open(validated_path, 'r', encoding=encoding) as f:
+            text = f.read()
+        logger.info(f"Successfully read text data from {validated_path}")
+        return text
+    except Exception as e:
+        raise ValidationError(f"Failed to read text {validated_path}: {e}")
 
 
 # Global default validator instances

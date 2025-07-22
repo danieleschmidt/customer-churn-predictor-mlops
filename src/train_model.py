@@ -11,7 +11,7 @@ from typing import Tuple
 
 from .constants import MODEL_PATH, FEATURE_COLUMNS_PATH, RUN_ID_PATH, MODEL_ARTIFACT_PATH
 from src.logging_config import get_logger
-from .validation import safe_read_csv, DEFAULT_PATH_VALIDATOR, DataValidator, ValidationError
+from .validation import safe_read_csv, safe_write_json, safe_write_text, DEFAULT_PATH_VALIDATOR, DataValidator, ValidationError
 
 logger = get_logger(__name__)
 
@@ -133,14 +133,12 @@ def train_churn_model(
         joblib.dump(model, MODEL_PATH)
 
         # Save feature column order for prediction
-        with open(FEATURE_COLUMNS_PATH, 'w') as f:
-            json.dump(X.columns.tolist(), f)
+        safe_write_json(X.columns.tolist(), FEATURE_COLUMNS_PATH)
         mlflow.log_artifact(FEATURE_COLUMNS_PATH)
 
         # Persist the MLflow run ID so prediction utilities can retrieve
         # artifacts later if needed.
-        with open(RUN_ID_PATH, 'w') as f:
-            f.write(run_id)
+        safe_write_text(run_id, RUN_ID_PATH)
 
         logger.info("Model training and MLflow logging complete.")
         return MODEL_PATH, run_id

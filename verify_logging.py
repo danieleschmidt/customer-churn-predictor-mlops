@@ -6,6 +6,9 @@ Verification script to ensure logging migration was successful.
 import os
 import re
 from pathlib import Path
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def check_file_for_logging(file_path: Path) -> dict:
@@ -85,14 +88,14 @@ def main():
         status = result['status']
         status_counts[status] = status_counts.get(status, 0) + 1
     
-    print("Logging Migration Verification Report")
-    print("=" * 40)
+    logger.info("Logging Migration Verification Report")
+    logger.info("=" * 40)
     
     for status, count in status_counts.items():
-        print(f"{status}: {count} files")
+        logger.info(f"{status}: {count} files")
     
-    print("\nDetailed Results:")
-    print("-" * 40)
+    logger.info("\nDetailed Results:")
+    logger.info("-" * 40)
     
     for result in results:
         file_name = result['file'].split('/')[-1]
@@ -100,25 +103,25 @@ def main():
         logging_calls = result['logging_calls']
         print_count = len(result['print_statements'])
         
-        print(f"{file_name:25} | {status:20} | {logging_calls:3} logs | {print_count:3} prints")
+        logger.info(f"{file_name:25} | {status:20} | {logging_calls:3} logs | {print_count:3} prints")
     
     # Show files that need attention
     needs_attention = [r for r in results if r['status'] in ['needs_migration', 'partially_migrated']]
     
     if needs_attention:
-        print(f"\nFiles needing attention ({len(needs_attention)}):")
-        print("-" * 40)
+        logger.warning(f"\nFiles needing attention ({len(needs_attention)}):")
+        logger.info("-" * 40)
         for result in needs_attention:
-            print(f"• {result['file']}: {result['status']}")
+            logger.warning(f"• {result['file']}: {result['status']}")
             if result['print_statements']:
-                print(f"  - {len(result['print_statements'])} print statements remaining")
+                logger.warning(f"  - {len(result['print_statements'])} print statements remaining")
     
     total_migrated = status_counts.get('fully_migrated', 0)
     total_files = len([r for r in results if r['status'] != 'no_logging_needed'])
     
     if total_files > 0:
         migration_percentage = (total_migrated / total_files) * 100
-        print(f"\nMigration Progress: {total_migrated}/{total_files} files ({migration_percentage:.1f}%)")
+        logger.info(f"\nMigration Progress: {total_migrated}/{total_files} files ({migration_percentage:.1f}%)")
     
     return needs_attention
 

@@ -4,6 +4,7 @@ import os
 import json
 import mlflow
 from typing import Optional, Tuple, List, Dict, Any
+from .validation import safe_read_csv, safe_write_json, safe_read_json, safe_write_text, safe_read_text, ValidationError
 
 from .constants import (
     MODEL_PATH,
@@ -40,8 +41,11 @@ def _get_run_id() -> Optional[str]:
     if run_id:
         return run_id
     if os.path.exists(RUN_ID_PATH):
-        with open(RUN_ID_PATH) as f:
-            return f.read().strip()
+        try:
+            return safe_read_text(RUN_ID_PATH).strip()
+        except ValidationError as e:
+            logger.warning(f"Failed to read run ID safely: {e}")
+            return None
     return None
 
 
@@ -119,10 +123,9 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
     columns: Optional[List[str]] = None
     if os.path.exists(FEATURE_COLUMNS_PATH):
         try:
-            with open(FEATURE_COLUMNS_PATH) as f:
-                columns = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
-            logger.error(f"Error loading feature columns: {e}")
+            columns = safe_read_json(FEATURE_COLUMNS_PATH)
+        except ValidationError as e:
+            logger.error(f"Error loading feature columns safely: {e}")
             columns = None
     
     if columns is None and run_id:
@@ -134,11 +137,12 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
                 path = os.path.join(dl_path, "feature_columns.json")
             else:
                 path = dl_path
-            with open(path) as f:
-                columns = json.load(f)
-            os.makedirs(os.path.dirname(FEATURE_COLUMNS_PATH), exist_ok=True)
-            with open(FEATURE_COLUMNS_PATH, "w") as out_f:
-                json.dump(columns, out_f)
+            try:
+                columns = safe_read_json(path)
+                safe_write_json(columns, FEATURE_COLUMNS_PATH)
+            except ValidationError as e:
+                logger.error(f"Error handling feature columns safely: {e}")
+                columns = None
         except (ImportError, FileNotFoundError, json.JSONDecodeError, OSError, RuntimeError) as e:
             logger.error(f"Error downloading feature columns from MLflow: {e}")
             columns = None
@@ -381,7 +385,11 @@ if __name__ == "__main__":
         processed_features_path = "data/processed/processed_features.csv"
         if os.path.exists(processed_features_path):
             try:
-                X_processed_df = pd.read_csv(processed_features_path)
+                try:
+                    X_processed_df = safe_read_csv(processed_features_path)
+                except ValidationError as e:
+                    logger.warning(f"Failed to read processed features safely: {e}")
+                    X_processed_df = pd.DataFrame()  # Empty DataFrame as fallback
                 sample_feature_names = X_processed_df.columns.tolist()
 
                 # Create a dummy input dict using the first row of processed data

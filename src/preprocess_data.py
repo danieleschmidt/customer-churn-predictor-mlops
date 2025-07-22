@@ -5,6 +5,7 @@ import numpy as np
 from typing import Union, Tuple
 
 from .constants import PREPROCESSOR_PATH
+from .validation import safe_read_csv, ValidationError, DEFAULT_PATH_VALIDATOR
 import joblib
 
 
@@ -34,7 +35,10 @@ def preprocess(
         ``return_preprocessor`` is ``True`` an additional third element,
         the fitted preprocessor, is returned.
     """
-    df: pd.DataFrame = pd.read_csv(df_path)
+    try:
+        df: pd.DataFrame = safe_read_csv(df_path)
+    except ValidationError as e:
+        raise ValueError(f"Failed to read input data safely: {e}") from e
 
     # Convert 'TotalCharges' to numeric, coercing errors, and fill NaNs
     df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")

@@ -12,7 +12,17 @@
 
 ## CRITICAL PRIORITY (WSJF > 2.0)
 
-### 1. Fix Performance Issue - DataFrame.iterrows() (WSJF: 3.5)
+### 1. ✅ Replace Print Statements in Utility Scripts (WSJF: 2.4) - COMPLETED
+**Files**: `verify_logging.py`, `validate_dependencies.py`, `migrate_logging.py`, `generate_lockfile.py`
+- **Business Value**: 8 (observability consistency)
+- **Time Criticality**: 8 (operational standards)
+- **Risk Reduction**: 8 (proper log management)
+- **Job Size**: 4 (systematic replacement)
+- **Description**: Replace all print statements with proper logging in utility scripts
+- **Acceptance Criteria**: All utility scripts use structured logging with appropriate levels
+- **Completed**: 2025-07-22 - Replaced all print statements with structured logging using get_logger() pattern
+
+### 2. ✅ Fix Performance Issue - DataFrame.iterrows() (WSJF: 3.5) - COMPLETED
 **Files**: `scripts/run_prediction.py`
 - **Business Value**: 7 (user experience impact)
 - **Time Criticality**: 7 (scalability blocker)
@@ -20,8 +30,9 @@
 - **Job Size**: 2 (simple vectorization)
 - **Description**: Replace inefficient iterrows() with vectorized operations
 - **Acceptance Criteria**: Batch predictions run 10x faster
+- **Completed**: Previously completed but fallback code still exists
 
-### 2. Implement Centralized Logging System (WSJF: 2.67)
+### 3. ✅ Implement Centralized Logging System (WSJF: 2.67) - PARTIALLY COMPLETED
 **Files**: All modules with print statements
 - **Business Value**: 8 (observability)
 - **Time Criticality**: 8 (production requirement)
@@ -29,6 +40,7 @@
 - **Job Size**: 3 (structured refactor)
 - **Description**: Replace all print statements with proper logging
 - **Acceptance Criteria**: All outputs use Python logging with appropriate levels
+- **Note**: Main modules completed, utility scripts still need conversion
 
 ### 3. Add Dependency Version Pinning (WSJF: 2.5)
 **Files**: `requirements.txt`, new `requirements.lock`
@@ -71,6 +83,17 @@
 
 ---
 
+### 4. Remove Global State in Path Configuration (WSJF: 2.1)
+**Files**: `src/path_config.py`
+- **Business Value**: 7 (code quality)
+- **Time Criticality**: 6 (maintainability)
+- **Risk Reduction**: 9 (prevents race conditions)
+- **Job Size**: 3 (refactor to instance-based)
+- **Description**: Replace global _global_config variable with proper instance management
+- **Acceptance Criteria**: No global state, thread-safe configuration management
+
+---
+
 ## HIGH PRIORITY (WSJF 1.5-2.0)
 
 ### 7. ✅ Implement Input Validation Framework (WSJF: 1.8) - COMPLETED
@@ -93,7 +116,7 @@
 - **Acceptance Criteria**: All paths configurable via environment variables
 - **Completed**: 2025-07-21 - Implemented comprehensive path configuration system with PathConfig class, environment variable support, deployment examples, and backwards compatibility
 
-### 9. Add Security for File Operations (WSJF: 1.6)
+### 9. ✅ Add Security for File Operations (WSJF: 1.6) - COMPLETED
 **Files**: All modules with file I/O
 - **Business Value**: 8 (security)
 - **Time Criticality**: 7 (vulnerability fix)
@@ -101,6 +124,7 @@
 - **Job Size**: 5 (security implementation)
 - **Description**: Implement path sanitization and access control
 - **Acceptance Criteria**: No path traversal vulnerabilities remain
+- **Completed**: 2025-07-22 - Enhanced validation.py with secure file I/O functions (safe_read_csv, safe_write_csv, safe_read_json, safe_write_json, safe_read_text, safe_write_text), updated core modules to use secure operations
 
 ### 10. Extract MLflow Utilities (WSJF: 1.5)
 **Files**: `predict_churn.py`, `monitor_performance.py`
@@ -165,6 +189,8 @@
 - ✅ Environment Variable Validation (WSJF: 2.0) - 2025-07-20
 - ✅ Implement Input Validation Framework (WSJF: 1.8) - 2025-07-21
 - ✅ Refactor Hardcoded File Paths (WSJF: 1.75) - 2025-07-21
+- ✅ Replace Print Statements in Utility Scripts (WSJF: 2.4) - 2025-07-22
+- ✅ Add Security for File Operations (WSJF: 1.6) - 2025-07-22
 
 ---
 

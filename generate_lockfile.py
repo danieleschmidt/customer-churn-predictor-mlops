@@ -11,11 +11,14 @@ import sys
 import tempfile
 import os
 from pathlib import Path
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def run_command(cmd, description="Running command"):
     """Run a shell command and return the output."""
-    print(f"{description}: {' '.join(cmd)}")
+    logger.info(f"{description}: {' '.join(cmd)}")
     try:
         result = subprocess.run(
             cmd, 
@@ -25,15 +28,15 @@ def run_command(cmd, description="Running command"):
         )
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
-        print(f"Error: {e}")
-        print(f"Stdout: {e.stdout}")
-        print(f"Stderr: {e.stderr}")
+        logger.error(f"Error: {e}")
+        logger.error(f"Stdout: {e.stdout}")
+        logger.error(f"Stderr: {e.stderr}")
         raise
 
 
 def generate_lockfile(requirements_file, output_file, description):
     """Generate a lockfile from a requirements file."""
-    print(f"\n=== Generating {description} ===")
+    logger.info(f"\n=== Generating {description} ===")
     
     # Create a temporary virtual environment
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -87,11 +90,11 @@ def generate_lockfile(requirements_file, output_file, description):
         with open(output_file, 'w') as f:
             f.write(lockfile_content)
         
-        print(f"✅ Generated {output_file}")
+        logger.info(f"✅ Generated {output_file}")
         
         # Show some statistics
         dependencies = [line for line in freeze_output.split('\n') if line and not line.startswith('#')]
-        print(f"📊 Total dependencies locked: {len(dependencies)}")
+        logger.info(f"📊 Total dependencies locked: {len(dependencies)}")
 
 
 def main():
@@ -99,16 +102,16 @@ def main():
     root_dir = Path(__file__).parent
     os.chdir(root_dir)
     
-    print("🔒 Dependency Version Pinning Tool")
-    print("=" * 50)
+    logger.info("🔒 Dependency Version Pinning Tool")
+    logger.info("=" * 50)
     
     # Check if requirements files exist
     if not Path("requirements.txt").exists():
-        print("❌ Error: requirements.txt not found")
+        logger.error("❌ Error: requirements.txt not found")
         return 1
     
     if not Path("requirements-dev.txt").exists():
-        print("❌ Error: requirements-dev.txt not found")
+        logger.error("❌ Error: requirements-dev.txt not found")
         return 1
     
     try:
@@ -126,16 +129,16 @@ def main():
             "Development Dependencies Lockfile"
         )
         
-        print("\n🎉 Lockfile generation completed successfully!")
-        print("\nNext steps:")
-        print("1. Review the generated .lock files")
-        print("2. Update CI/CD to use lockfiles for reproducible builds")
-        print("3. Document the lockfile update process in README")
+        logger.info("\n🎉 Lockfile generation completed successfully!")
+        logger.info("\nNext steps:")
+        logger.info("1. Review the generated .lock files")
+        logger.info("2. Update CI/CD to use lockfiles for reproducible builds")
+        logger.info("3. Document the lockfile update process in README")
         
         return 0
         
     except Exception as e:
-        print(f"\n❌ Error generating lockfiles: {e}")
+        logger.error(f"\n❌ Error generating lockfiles: {e}")
         return 1
 
 
