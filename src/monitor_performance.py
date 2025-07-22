@@ -1,11 +1,16 @@
 import os
 import joblib
 import pandas as pd
-import mlflow
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 import json
 from typing import Union, Tuple, Dict, Any, Optional
 from .validation import safe_read_csv, ValidationError
+from .mlflow_utils import (
+    download_model_from_mlflow,
+    log_evaluation_metrics,
+    MLflowError,
+    is_mlflow_available
+)
 
 from src.train_model import train_churn_model
 from src.predict_churn import _get_run_id
@@ -48,14 +53,13 @@ def evaluate_model(
     model = None
     if os.path.exists(model_path):
         model = joblib.load(model_path)
-    elif run_id:
+    elif run_id and is_mlflow_available():
         try:
-            logger.info(f"Downloading model from MLflow run {run_id}...")
-            model = mlflow.sklearn.load_model(f"runs:/{run_id}/{MODEL_ARTIFACT_PATH}")
+            model = download_model_from_mlflow(run_id)
             os.makedirs(os.path.dirname(model_path), exist_ok=True)
             joblib.dump(model, model_path)
             logger.info(f"Saved downloaded model to {model_path}")
-        except (ImportError, OSError, RuntimeError) as e:
+        except MLflowError as e:
             logger.error(f"Error downloading model from MLflow: {e}")
             raise FileNotFoundError(f"Model not found at {model_path}") from e
     else:
@@ -75,15 +79,27 @@ def evaluate_model(
         report = classification_report(y, y_pred, output_dict=True)
 
     # Log evaluation metrics to MLflow for tracking
-    with mlflow.start_run(run_name="evaluation"):
-        mlflow.log_metric("accuracy", accuracy)
-        mlflow.log_metric("f1_score", f1)
-        if detailed and report is not None:
-            tmp_path = "classification_report.json"
-            with open(tmp_path, "w") as f:
-                json.dump(report, f)
-            mlflow.log_artifact(tmp_path)
-            os.remove(tmp_path)
+    if is_mlflow_available():
+        try:
+            metrics = {"accuracy": accuracy, "f1_score": f1}
+            artifacts = {}
+            
+            if detailed and report is not None:
+                tmp_path = "classification_report.json"
+                with open(tmp_path, "w") as f:
+                    json.dump(report, f)
+                artifacts["classification_report"] = tmp_path
+                
+            log_evaluation_metrics(metrics, artifacts=artifacts)
+            
+            # Clean up temporary file
+            if detailed and "classification_report" in artifacts:
+                os.remove(tmp_path)
+                
+        except MLflowError as e:
+            logger.warning(f"Failed to log metrics to MLflow: {e}")
+    else:
+        logger.info("MLflow not available, skipping metric logging")
 
     if detailed:
         return accuracy, f1, report
