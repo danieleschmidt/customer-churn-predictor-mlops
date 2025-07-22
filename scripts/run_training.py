@@ -88,6 +88,50 @@ def run_training(
 
 
 def main():
+    """
+    Command-line interface for training the customer churn prediction model.
+    
+    This script provides a command-line interface for training a logistic
+    regression model to predict customer churn. It accepts various hyperparameters
+    and data paths as command-line arguments, with sensible defaults from the
+    configuration file.
+    
+    The training process includes:
+    - Loading processed feature and target datasets
+    - Training a logistic regression model with specified parameters
+    - Evaluating model performance on test data
+    - Saving the trained model and logging to MLflow
+    
+    Command-line Arguments
+    ----------------------
+    --X_path : str
+        Path to processed features CSV file (default from config)
+    --y_path : str
+        Path to processed target CSV file (default from config)
+    --solver : str
+        Logistic regression solver algorithm (default: 'liblinear')
+    --C : float
+        Inverse of regularization strength (default: 1.0)
+    --penalty : str
+        Regularization penalty type (default: 'l2')
+    --random_state : int
+        Random seed for reproducibility (default: 42)
+    --max_iter : int
+        Maximum number of training iterations (default: 100)
+    --test_size : float
+        Proportion of data for testing (default: 0.2)
+    
+    Examples
+    --------
+    Train with default parameters:
+    $ python scripts/run_training.py
+    
+    Train with custom regularization:
+    $ python scripts/run_training.py --C 0.5 --penalty l1
+    
+    Train with specific data paths:
+    $ python scripts/run_training.py --X_path data/features.csv --y_path data/target.csv
+    """
     parser = argparse.ArgumentParser(description="Train churn model")
     cfg = load_config()
     parser.add_argument(

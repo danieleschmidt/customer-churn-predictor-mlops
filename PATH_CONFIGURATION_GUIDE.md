@@ -130,13 +130,59 @@ export CHURN_MODEL_PATH="/mnt/efs-models/churn_model.joblib"
 
 ## Programming Interface
 
-### Using Path Configuration in Code
+### Recommended Approach: Dependency Injection (New)
+
+The preferred way to use path configuration is through dependency injection, which provides better testability and thread safety:
+
+```python
+from src.path_config import PathConfig, get_model_path, get_data_path
+
+# Create a path configuration instance
+path_config = PathConfig.from_environment()  # Or PathConfig(base_dir="/custom")
+
+# Pass the config to path functions
+model_path = get_model_path("my_model.joblib", config=path_config)
+data_path = get_data_path("processed", "features.csv", config=path_config)
+
+# Use in functions that accept PathConfig
+from src.config import load_config
+cfg = load_config(path_config=path_config)
+
+# Use in preprocessing
+from scripts.run_preprocessing import run_preprocessing
+run_preprocessing(path_config=path_config)
+```
+
+### Service-Based Approach
+
+For larger applications, create services that accept PathConfig:
+
+```python
+class DataProcessor:
+    def __init__(self, path_config: PathConfig):
+        self.path_config = path_config
+    
+    def process_data(self):
+        raw_data_path = get_raw_data_path(config=self.path_config)
+        processed_path = get_processed_features_path(config=self.path_config)
+        # Process data...
+        return processed_path
+
+# Usage
+path_config = PathConfig.from_environment()
+processor = DataProcessor(path_config)
+result = processor.process_data()
+```
+
+### Legacy Approach (Still Supported)
+
+The old global configuration approach is still supported for backwards compatibility:
 
 ```python
 from src.path_config import get_model_path, get_data_path, get_log_path
 
-# Get paths that respect environment configuration
-model_path = get_model_path("my_model.joblib")
+# Get paths using default/environment configuration
+model_path = get_model_path("my_model.joblib")  # Uses environment or defaults
 data_path = get_data_path("processed", "features.csv")
 log_path = get_log_path("application.log")
 
@@ -145,23 +191,28 @@ import pandas as pd
 df = pd.read_csv(data_path)
 ```
 
-### Custom Path Configuration
+### Benefits of Dependency Injection Approach
+
+The new dependency injection approach provides several advantages:
+
+1. **Thread Safety**: Each PathConfig instance is independent, preventing race conditions
+2. **Testability**: Easy to inject mock configurations for testing
+3. **Explicit Dependencies**: Clear what configuration each component uses
+4. **Flexibility**: Different parts of the application can use different configurations
+5. **No Global State**: Eliminates hidden global state that can cause issues
+
+#### Migration Example
 
 ```python
-from src.path_config import PathConfig, set_path_config
+# Old approach (global state)
+from src.path_config import configure_paths_from_env, get_model_path
+configure_paths_from_env()  # Sets global state
+model_path = get_model_path()
 
-# Create custom configuration
-config = PathConfig(
-    base_dir="/custom/base",
-    data_dir="/custom/data",
-    models_dir="/custom/models"
-)
-
-# Set as global configuration
-set_path_config(config)
-
-# Now all modules use custom paths
-from src.constants import MODEL_PATH  # Uses custom model path
+# New approach (dependency injection)
+from src.path_config import PathConfig, get_model_path
+path_config = PathConfig.from_environment()
+model_path = get_model_path(config=path_config)
 ```
 
 ### Backwards Compatibility
@@ -255,13 +306,19 @@ python -m pytest tests/test_path_config.py -v
 ### Debug Path Resolution
 
 ```python
-from src.path_config import get_path_config
+from src.path_config import PathConfig
 
-config = get_path_config()
+# Debug current environment configuration
+config = PathConfig.from_environment()
 print(f"Base dir: {config.base_dir}")
 print(f"Data dir: {config.data_dir}")
 print(f"Models dir: {config.models_dir}")
 print(f"Logs dir: {config.logs_dir}")
+
+# Debug specific path resolution
+from src.path_config import get_model_path, get_data_path
+print(f"Model path: {get_model_path(config=config)}")
+print(f"Data path: {get_data_path('processed', 'test.csv', config=config)}")
 ```
 
 ### Enable Debug Logging

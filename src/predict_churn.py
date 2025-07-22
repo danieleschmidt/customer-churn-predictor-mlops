@@ -2,9 +2,15 @@ import joblib
 import pandas as pd
 import os
 import json
-import mlflow
 from typing import Optional, Tuple, List, Dict, Any
 from .validation import safe_read_csv, safe_write_json, safe_read_json, safe_write_text, safe_read_text, ValidationError
+from .mlflow_utils import (
+    download_model_from_mlflow,
+    download_preprocessor_from_mlflow,
+    download_feature_columns_from_mlflow,
+    MLflowError,
+    is_mlflow_available
+)
 
 from .constants import (
     MODEL_PATH,
@@ -82,14 +88,13 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
         except (FileNotFoundError, EOFError, OSError, RuntimeError) as e:
             logger.error(f"Error loading model: {e}")
             return None, None
-    elif run_id:
+    elif run_id and is_mlflow_available():
         try:
-            logger.info(f"Downloading model from MLflow run {run_id}...")
-            model = mlflow.sklearn.load_model(f"runs:/{run_id}/{MODEL_ARTIFACT_PATH}")
+            model = download_model_from_mlflow(run_id)
             os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
             joblib.dump(model, MODEL_PATH)
             logger.info(f"Saved downloaded model to {MODEL_PATH}")
-        except (ImportError, OSError, RuntimeError) as e:
+        except MLflowError as e:
             logger.error(f"Error downloading model from MLflow: {e}")
             return None, None
     else:
@@ -102,21 +107,13 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
             preprocessor = joblib.load(PREPROCESSOR_PATH)
         except (FileNotFoundError, EOFError, OSError, RuntimeError) as e:
             logger.error(f"Error loading preprocessor: {e}")
-    elif run_id:
+    elif run_id and is_mlflow_available():
         try:
-            logger.info(f"Downloading preprocessor from MLflow run {run_id}...")
-            dl_path = mlflow.artifacts.download_artifacts(
-                run_id=run_id, artifact_path="preprocessor.joblib"
-            )
-            path = (
-                os.path.join(dl_path, "preprocessor.joblib")
-                if os.path.isdir(dl_path)
-                else dl_path
-            )
-            preprocessor = joblib.load(path)
+            preprocessor_path = download_preprocessor_from_mlflow(run_id)
+            preprocessor = joblib.load(preprocessor_path)
             os.makedirs(os.path.dirname(PREPROCESSOR_PATH), exist_ok=True)
             joblib.dump(preprocessor, PREPROCESSOR_PATH)
-        except (ImportError, OSError, FileNotFoundError, RuntimeError) as e:
+        except (MLflowError, OSError, FileNotFoundError, RuntimeError) as e:
             logger.error(f"Error downloading preprocessor from MLflow: {e}")
     
     # Load feature columns
@@ -128,22 +125,11 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
             logger.error(f"Error loading feature columns safely: {e}")
             columns = None
     
-    if columns is None and run_id:
+    if columns is None and run_id and is_mlflow_available():
         try:
-            dl_path = mlflow.artifacts.download_artifacts(
-                run_id=run_id, artifact_path="feature_columns.json"
-            )
-            if os.path.isdir(dl_path):
-                path = os.path.join(dl_path, "feature_columns.json")
-            else:
-                path = dl_path
-            try:
-                columns = safe_read_json(path)
-                safe_write_json(columns, FEATURE_COLUMNS_PATH)
-            except ValidationError as e:
-                logger.error(f"Error handling feature columns safely: {e}")
-                columns = None
-        except (ImportError, FileNotFoundError, json.JSONDecodeError, OSError, RuntimeError) as e:
+            columns = download_feature_columns_from_mlflow(run_id)
+            safe_write_json(columns, FEATURE_COLUMNS_PATH)
+        except (MLflowError, ValidationError) as e:
             logger.error(f"Error downloading feature columns from MLflow: {e}")
             columns = None
     
@@ -223,19 +209,18 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
         except (FileNotFoundError, EOFError, OSError, RuntimeError) as e:
             logger.error(f"Error loading model: {e}")
             return None, None
-    elif run_id:
+    elif run_id and is_mlflow_available():
         try:
-            logger.info(f"Downloading model from MLflow run {run_id}...")
-            model = mlflow.sklearn.load_model(f"runs:/{run_id}/{MODEL_ARTIFACT_PATH}")
+            model = download_model_from_mlflow(run_id)
             os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
             joblib.dump(model, MODEL_PATH)
             logger.info(f"Saved downloaded model to {MODEL_PATH}")
-        except (ImportError, OSError, RuntimeError) as e:
+        except MLflowError as e:
             logger.error(f"Error downloading model from MLflow: {e}")
             return None, None
     else:
         logger.error(
-            f"Model not found at {MODEL_PATH} and no run ID available via {RUN_ID_PATH} or {RUN_ID_ENV_VAR}"
+            f"Model not found at {MODEL_PATH} and no run ID available via {RUN_ID_PATH} or environment"
         )
         return None, None
 
@@ -245,21 +230,13 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
             preprocessor = joblib.load(PREPROCESSOR_PATH)
         except (FileNotFoundError, EOFError, OSError, RuntimeError) as e:
             logger.error(f"Error loading preprocessor: {e}")
-    elif run_id:
+    elif run_id and is_mlflow_available():
         try:
-            logger.info(f"Downloading preprocessor from MLflow run {run_id}...")
-            dl_path = mlflow.artifacts.download_artifacts(
-                run_id=run_id, artifact_path="preprocessor.joblib"
-            )
-            path = (
-                os.path.join(dl_path, "preprocessor.joblib")
-                if os.path.isdir(dl_path)
-                else dl_path
-            )
-            preprocessor = joblib.load(path)
+            preprocessor_path = download_preprocessor_from_mlflow(run_id)
+            preprocessor = joblib.load(preprocessor_path)
             os.makedirs(os.path.dirname(PREPROCESSOR_PATH), exist_ok=True)
             joblib.dump(preprocessor, PREPROCESSOR_PATH)
-        except (ImportError, OSError, FileNotFoundError, RuntimeError) as e:
+        except (MLflowError, OSError, FileNotFoundError, RuntimeError) as e:
             logger.error(f"Error downloading preprocessor from MLflow: {e}")
 
     columns: Optional[List[str]] = None
@@ -271,20 +248,12 @@ def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = Non
             logger.error(f"Error loading feature columns: {e}")
             columns = None
 
-    if columns is None and run_id:
+    if columns is None and run_id and is_mlflow_available():
         try:
-            dl_path = mlflow.artifacts.download_artifacts(
-                run_id=run_id, artifact_path="feature_columns.json"
-            )
-            if os.path.isdir(dl_path):
-                path = os.path.join(dl_path, "feature_columns.json")
-            else:
-                path = dl_path
-            with open(path) as f:
-                columns = json.load(f)
+            columns = download_feature_columns_from_mlflow(run_id)
             # Persist for future predictions
             safe_write_json(columns, FEATURE_COLUMNS_PATH)
-        except (ImportError, FileNotFoundError, json.JSONDecodeError, OSError, RuntimeError) as e:
+        except (MLflowError, ValidationError) as e:
             logger.error(f"Error downloading feature columns from MLflow: {e}")
             columns = None
 

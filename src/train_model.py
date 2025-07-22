@@ -2,8 +2,12 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score
-import mlflow
-import mlflow.sklearn
+try:
+    import mlflow
+    import mlflow.sklearn
+    MLFLOW_AVAILABLE = True
+except ImportError:
+    MLFLOW_AVAILABLE = False
 import joblib
 import os
 import json
@@ -82,66 +86,75 @@ def train_churn_model(
         stratify=y,
     )
 
-    # Initialize MLflow run
-    with mlflow.start_run() as run:
-        run_id = run.info.run_id
-        logger.info(f"MLflow Run ID: {run_id}")
+    # Initialize and train Logistic Regression model
+    logger.info("Training Logistic Regression model...")
+    model = LogisticRegression(
+        solver=solver,
+        C=C,
+        penalty=penalty,
+        random_state=random_state,
+        max_iter=max_iter,
+    )
+    model.fit(X_train, y_train)
 
-        # Initialize and train Logistic Regression model
-        logger.info("Training Logistic Regression model...")
-        model = LogisticRegression(
-            solver=solver,
-            C=C,
-            penalty=penalty,
-            random_state=random_state,
-            max_iter=max_iter,
-        )
-        model.fit(X_train, y_train)
+    # Make predictions
+    y_pred_test = model.predict(X_test)
 
-        # Make predictions
-        y_pred_test = model.predict(X_test)
+    # Calculate metrics
+    accuracy = accuracy_score(y_test, y_pred_test)
+    f1 = f1_score(y_test, y_pred_test)
 
-        # Calculate metrics
-        accuracy = accuracy_score(y_test, y_pred_test)
-        f1 = f1_score(y_test, y_pred_test)
+    logger.info(f"Test Set Accuracy: {accuracy:.4f}")
+    logger.info(f"Test Set F1-score: {f1:.4f}")
 
-        logger.info(f"Test Set Accuracy: {accuracy:.4f}")
-        logger.info(f"Test Set F1-score: {f1:.4f}")
+    # Save the trained model
+    model_dir = os.path.dirname(MODEL_PATH)
+    os.makedirs(model_dir, exist_ok=True)
+    logger.info(f"Saving trained model to {MODEL_PATH}...")
+    joblib.dump(model, MODEL_PATH)
 
-        # Log parameters
-        logger.info("Logging model parameters to MLflow...")
-        mlflow.log_param("solver", model.get_params()['solver'])
-        mlflow.log_param("C", model.get_params()['C'])
-        mlflow.log_param("penalty", model.get_params()['penalty'])
-        mlflow.log_param("random_state", model.get_params()['random_state'])
-        mlflow.log_param("max_iter", model.get_params()['max_iter'])
-        mlflow.log_param("test_size", test_size)
+    # Save feature column order for prediction
+    safe_write_json(X.columns.tolist(), FEATURE_COLUMNS_PATH)
 
-        # Log metrics
-        logger.info("Logging model metrics to MLflow...")
-        mlflow.log_metric("accuracy", accuracy)
-        mlflow.log_metric("f1_score", f1)
+    run_id = None
+    if MLFLOW_AVAILABLE:
+        # Initialize MLflow run
+        with mlflow.start_run() as run:
+            run_id = run.info.run_id
+            logger.info(f"MLflow Run ID: {run_id}")
 
-        # Log model
-        logger.info("Logging model to MLflow...")
-        mlflow.sklearn.log_model(model, MODEL_ARTIFACT_PATH)
+            # Log parameters
+            logger.info("Logging model parameters to MLflow...")
+            mlflow.log_param("solver", model.get_params()['solver'])
+            mlflow.log_param("C", model.get_params()['C'])
+            mlflow.log_param("penalty", model.get_params()['penalty'])
+            mlflow.log_param("random_state", model.get_params()['random_state'])
+            mlflow.log_param("max_iter", model.get_params()['max_iter'])
+            mlflow.log_param("test_size", test_size)
 
-        # Save the trained model
-        model_dir = os.path.dirname(MODEL_PATH)
-        os.makedirs(model_dir, exist_ok=True)
-        logger.info(f"Saving trained model to {MODEL_PATH}...")
-        joblib.dump(model, MODEL_PATH)
+            # Log metrics
+            logger.info("Logging model metrics to MLflow...")
+            mlflow.log_metric("accuracy", accuracy)
+            mlflow.log_metric("f1_score", f1)
 
-        # Save feature column order for prediction
-        safe_write_json(X.columns.tolist(), FEATURE_COLUMNS_PATH)
-        mlflow.log_artifact(FEATURE_COLUMNS_PATH)
+            # Log model
+            logger.info("Logging model to MLflow...")
+            mlflow.sklearn.log_model(model, MODEL_ARTIFACT_PATH)
 
-        # Persist the MLflow run ID so prediction utilities can retrieve
-        # artifacts later if needed.
+            # Log feature columns artifact
+            mlflow.log_artifact(FEATURE_COLUMNS_PATH)
+
+            # Persist the MLflow run ID so prediction utilities can retrieve
+            # artifacts later if needed.
+            safe_write_text(run_id, RUN_ID_PATH)
+
+            logger.info("Model training and MLflow logging complete.")
+    else:
+        logger.info("MLflow not available, skipping MLflow logging")
+        run_id = "local_training"
         safe_write_text(run_id, RUN_ID_PATH)
 
-        logger.info("Model training and MLflow logging complete.")
-        return MODEL_PATH, run_id
+    return MODEL_PATH, run_id
 
 if __name__ == '__main__':
     # This part is for direct script execution testing, if needed.

@@ -6,7 +6,7 @@ import os
 from unittest.mock import patch, MagicMock
 import pytest
 
-from src.logging_config import setup_logging, get_logger
+from src.logging_config import setup_logging, get_logger, configure_mlflow_logging, log_function_call
 
 
 class TestLoggingSystem:
@@ -143,3 +143,230 @@ class TestLoggingSystem:
         finally:
             if os.path.exists(log_file):
                 os.unlink(log_file)
+
+
+class TestMLflowLoggingConfiguration:
+    """Test MLflow logging configuration."""
+    
+    def test_configure_mlflow_logging_default(self):
+        """Test MLflow logging configuration with default level."""
+        with patch('logging.getLogger') as mock_get_logger:
+            mock_logger = MagicMock()
+            mock_get_logger.return_value = mock_logger
+            
+            configure_mlflow_logging()
+            
+            # Should configure specific MLflow loggers
+            expected_loggers = ['mlflow', 'mlflow.tracking', 'mlflow.store', 'mlflow.utils']
+            assert mock_get_logger.call_count == len(expected_loggers)
+            
+            for logger_name in expected_loggers:
+                mock_get_logger.assert_any_call(logger_name)
+            
+            # Each logger should have WARNING level set
+            assert mock_logger.setLevel.call_count == len(expected_loggers)
+            mock_logger.setLevel.assert_called_with(logging.WARNING)
+    
+    def test_configure_mlflow_logging_custom_level(self):
+        """Test MLflow logging configuration with custom level."""
+        with patch('logging.getLogger') as mock_get_logger:
+            mock_logger = MagicMock()
+            mock_get_logger.return_value = mock_logger
+            
+            configure_mlflow_logging(level=logging.ERROR)
+            
+            # Should set ERROR level
+            mock_logger.setLevel.assert_called_with(logging.ERROR)
+
+
+class TestLogFunctionCallDecorator:
+    """Test the log_function_call decorator."""
+    
+    def test_decorator_logs_function_call(self):
+        """Test that decorator logs function calls."""
+        @log_function_call
+        def test_function(arg1, arg2=None):
+            return "result"
+        
+        with patch('src.logging_config.get_logger') as mock_get_logger:
+            mock_logger = MagicMock()
+            mock_get_logger.return_value = mock_logger
+            
+            result = test_function("value1", arg2="value2")
+            
+            assert result == "result"
+            mock_get_logger.assert_called_once()
+            
+            # Should log function call and return
+            assert mock_logger.debug.call_count == 2
+            call_args = [call[0][0] for call in mock_logger.debug.call_args_list]
+            
+            # First call should log arguments
+            assert "Calling test_function" in call_args[0]
+            assert "arg1=('value1',)" in call_args[0] or "args=('value1',)" in call_args[0]
+            assert "arg2='value2'" in call_args[0] or "kwargs={'arg2': 'value2'}" in call_args[0]
+            
+            # Second call should log return type
+            assert "test_function returned: str" in call_args[1]
+    
+    def test_decorator_logs_exceptions(self):
+        """Test that decorator logs exceptions."""
+        @log_function_call
+        def failing_function():
+            raise ValueError("Test error")
+        
+        with patch('src.logging_config.get_logger') as mock_get_logger:
+            mock_logger = MagicMock()
+            mock_get_logger.return_value = mock_logger
+            
+            with pytest.raises(ValueError):
+                failing_function()
+            
+            # Should log function call and error
+            assert mock_logger.debug.call_count >= 1  # Function call
+            assert mock_logger.error.call_count == 1  # Exception
+            
+            error_call = mock_logger.error.call_args[0][0]
+            assert "failing_function raised ValueError: Test error" in error_call
+    
+    def test_decorator_preserves_function_metadata(self):
+        """Test that decorator preserves function metadata."""
+        @log_function_call
+        def documented_function(arg):
+            """This is a test function."""
+            return arg * 2
+        
+        assert documented_function.__name__ == "documented_function"
+        assert documented_function.__doc__ == "This is a test function."
+    
+    def test_decorator_works_with_no_args(self):
+        """Test decorator with function that has no arguments."""
+        @log_function_call
+        def no_args_function():
+            return 42
+        
+        with patch('src.logging_config.get_logger') as mock_get_logger:
+            mock_logger = MagicMock()
+            mock_get_logger.return_value = mock_logger
+            
+            result = no_args_function()
+            
+            assert result == 42
+            assert mock_logger.debug.call_count == 2
+
+
+class TestAutoConfiguration:
+    """Test auto-configuration functionality."""
+    
+    @patch('src.logging_config.configure_mlflow_logging')
+    @patch('src.logging_config.setup_logging')
+    @patch('logging.getLogger')
+    def test_auto_configure_when_no_handlers(self, mock_get_logger, mock_setup, mock_configure_mlflow):
+        """Test auto-configuration when no handlers exist."""
+        # Mock root logger with no handlers
+        mock_root_logger = MagicMock()
+        mock_root_logger.handlers = []
+        mock_get_logger.return_value = mock_root_logger
+        
+        from src.logging_config import _auto_configure
+        _auto_configure()
+        
+        mock_setup.assert_called_once()
+        mock_configure_mlflow.assert_called_once()
+    
+    @patch('src.logging_config.configure_mlflow_logging')
+    @patch('src.logging_config.setup_logging')
+    @patch('logging.getLogger')
+    def test_auto_configure_skip_when_handlers_exist(self, mock_get_logger, mock_setup, mock_configure_mlflow):
+        """Test auto-configuration is skipped when handlers exist."""
+        # Mock root logger with existing handlers
+        mock_root_logger = MagicMock()
+        mock_root_logger.handlers = [MagicMock()]  # Has handlers
+        mock_get_logger.return_value = mock_root_logger
+        
+        from src.logging_config import _auto_configure
+        _auto_configure()
+        
+        mock_setup.assert_not_called()
+        mock_configure_mlflow.assert_not_called()
+
+
+class TestLoggingConfigIntegration:
+    """Integration tests for logging configuration."""
+    
+    def test_custom_format_string(self):
+        """Test setup with custom format string."""
+        custom_format = "%(levelname)s: %(message)s"
+        
+        with patch('logging.basicConfig') as mock_config, \
+             patch('logging.getLogger') as mock_get_logger:
+            
+            mock_root_logger = MagicMock()
+            mock_get_logger.return_value = mock_root_logger
+            
+            setup_logging(format_string=custom_format)
+            
+            # Should use custom format string
+            mock_config.assert_called_once()
+    
+    def test_directory_creation_for_log_file(self):
+        """Test that log directories are created when needed."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            nested_log_path = os.path.join(temp_dir, 'nested', 'logs', 'test.log')
+            
+            with patch('logging.basicConfig'), \
+                 patch('logging.getLogger') as mock_get_logger:
+                
+                mock_root_logger = MagicMock()
+                mock_get_logger.return_value = mock_root_logger
+                
+                setup_logging(log_file=nested_log_path)
+                
+                # Directory should be created
+                assert os.path.exists(os.path.dirname(nested_log_path))
+    
+    def test_non_rotation_file_handler(self):
+        """Test file handler without rotation."""
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            log_file = tmp_file.name
+        
+        try:
+            with patch('logging.FileHandler') as mock_file_handler, \
+                 patch('logging.getLogger') as mock_get_logger:
+                
+                mock_root_logger = MagicMock()
+                mock_get_logger.return_value = mock_root_logger
+                
+                setup_logging(log_file=log_file, enable_rotation=False)
+                
+                # Should use FileHandler, not RotatingFileHandler
+                mock_file_handler.assert_called_once_with(log_file)
+                
+        finally:
+            if os.path.exists(log_file):
+                os.unlink(log_file)
+    
+    def test_specific_logger_configuration(self):
+        """Test that specific loggers are configured."""
+        with patch('logging.getLogger') as mock_get_logger:
+            mock_loggers = {}
+            
+            def get_logger_side_effect(name):
+                if name not in mock_loggers:
+                    mock_loggers[name] = MagicMock()
+                return mock_loggers[name]
+            
+            mock_get_logger.side_effect = get_logger_side_effect
+            
+            setup_logging(level=logging.DEBUG)
+            
+            # Should configure src and scripts loggers
+            assert 'src' in mock_loggers
+            assert 'scripts' in mock_loggers
+            
+            mock_loggers['src'].setLevel.assert_called_with(logging.DEBUG)
+            mock_loggers['scripts'].setLevel.assert_called_with(logging.DEBUG)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])
