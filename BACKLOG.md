@@ -137,7 +137,7 @@
 - **Acceptance Criteria**: All exception handlers catch specific exception types with appropriate error handling
 - **Completed**: 2025-07-22 - Replaced 9 generic exception handlers with specific types (FileNotFoundError, PermissionError, UnicodeDecodeError, json.JSONDecodeError, pd.errors.*, subprocess.CalledProcessError, etc.). Added comprehensive test coverage.
 
-### 11. Add Missing Test Coverage (WSJF: 1.6)
+### 11. ✅ Add Missing Test Coverage (WSJF: 1.6) - COMPLETED
 **Files**: `src/cli.py`, `src/constants.py`, `src/env_config.py`, `src/logging_config.py`
 - **Business Value**: 7 (quality assurance)
 - **Time Criticality**: 5 (regression prevention)
@@ -145,6 +145,7 @@
 - **Job Size**: 4 (multiple test files)
 - **Description**: Add comprehensive test coverage for untested core modules
 - **Acceptance Criteria**: 80%+ test coverage for all core modules with unit and integration tests
+- **Completed**: 2025-07-22 - Created comprehensive test suites for all untested core modules: test_cli.py (17 test classes, 25+ test methods covering CLI commands, parameter handling, validation), test_constants.py (7 test classes, 31 test methods covering legacy constants, factory functions, environment handling), test_env_config.py (11 test classes, 34 test methods covering validation, error handling, configuration loading), enhanced test_logging_system.py with 4 additional test classes covering MLflow logging, decorators, auto-configuration
 
 ### 12. Extract MLflow Utilities (WSJF: 1.5)
 **Files**: `predict_churn.py`, `monitor_performance.py`
@@ -214,6 +215,7 @@
 - ✅ Complete Security Hardening in predict_churn.py (WSJF: 2.0) - 2025-07-22
 - ✅ Replace Generic Exception Handlers (WSJF: 1.8) - 2025-07-22
 - ✅ Remove Global State in Path Configuration (WSJF: 2.1) - 2025-07-22
+- ✅ Add Missing Test Coverage (WSJF: 1.6) - 2025-07-22
 
 ---
 
