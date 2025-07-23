@@ -11,18 +11,18 @@ from src.validation import safe_read_csv, safe_write_csv, ValidationError, DEFAU
 logger = get_logger(__name__)
 
 
-def run_predictions(input_csv: str, output_csv: str, run_id: Optional[str] = None, batch_mode: bool = True):
+def run_predictions(input_csv: str, output_csv: str, run_id: Optional[str] = None):
     """
-    Run churn predictions on a CSV of processed features.
+    Run churn predictions on a CSV of processed features using optimized batch processing.
     
     Args:
         input_csv: Path to input CSV file with features
         output_csv: Path to save predictions
         run_id: Optional MLflow run ID for model artifacts
-        batch_mode: If True, use optimized batch predictions (default: True)
         
     Raises:
         ValidationError: If file paths or data validation fails
+        RuntimeError: If batch prediction fails due to model or data issues
     """
     try:
         # Validate and read input CSV with security checks
@@ -42,31 +42,16 @@ def run_predictions(input_csv: str, output_csv: str, run_id: Optional[str] = Non
         safe_write_csv(df, output_csv, validator=DEFAULT_PATH_VALIDATOR)
         return
     
-    if batch_mode:
-        # Use optimized batch prediction (vectorized operations)
-        logger.info(f"Processing {len(df)} predictions in batch mode...")
-        predictions, probabilities = make_batch_predictions(df, run_id=run_id)
-        
-        if predictions is None or probabilities is None:
-            logger.error("Batch prediction failed, falling back to row-by-row processing...")
-            batch_mode = False
-        else:
-            df["prediction"] = predictions
-            df["probability"] = probabilities
+    # Use optimized batch prediction (vectorized operations only)
+    logger.info(f"Processing {len(df)} predictions in batch mode...")
+    predictions, probabilities = make_batch_predictions(df, run_id=run_id)
     
-    if not batch_mode:
-        # Fallback to row-by-row prediction (for error recovery or debugging)
-        logger.info(f"Processing {len(df)} predictions row-by-row...")
-        predictions = []
-        probabilities = []
-
-        for _, row in df.iterrows():
-            pred, prob = make_prediction(row.to_dict(), run_id=run_id)
-            predictions.append(pred)
-            probabilities.append(prob)
-
-        df["prediction"] = predictions
-        df["probability"] = probabilities
+    if predictions is None or probabilities is None:
+        logger.error("Batch prediction failed - model or data issues detected")
+        raise RuntimeError("Batch prediction failed. Check model availability and data format. Use --run_id if model files are missing.")
+    
+    df["prediction"] = predictions
+    df["probability"] = probabilities
 
     # Use safe CSV writing with validation
     safe_write_csv(df, output_csv, validator=DEFAULT_PATH_VALIDATOR)
@@ -76,10 +61,9 @@ def main():
     """
     Command-line interface for generating customer churn predictions.
     
-    This script provides a command-line interface for making batch predictions
-    on customer data using a trained churn prediction model. It supports both
-    batch predictions (recommended for large datasets) and row-by-row predictions
-    for compatibility with different data processing workflows.
+    This script provides a command-line interface for making high-performance
+    batch predictions on customer data using a trained churn prediction model.
+    All predictions use optimized vectorized operations for maximum performance.
     
     The script loads a trained model and generates predictions for customers
     provided in a CSV file. Output includes both binary predictions (0/1)
@@ -94,8 +78,6 @@ def main():
         Path where prediction results will be saved (default: 'predictions.csv')
     --run_id : str
         MLflow run ID to download model artifacts from if model not found locally
-    --no-batch : flag
-        Use row-by-row predictions instead of optimized batch predictions
     
     Examples
     --------
@@ -124,17 +106,11 @@ def main():
         help="Where to save predictions",
     )
     parser.add_argument("--run_id", help="MLflow run ID to download artifacts")
-    parser.add_argument(
-        "--no-batch",
-        action="store_true",
-        help="Disable batch mode (use row-by-row processing for debugging)"
-    )
     args = parser.parse_args()
     run_predictions(
         args.input_csv, 
         args.output_csv, 
-        run_id=args.run_id,
-        batch_mode=not args.no_batch
+        run_id=args.run_id
     )
 
 
