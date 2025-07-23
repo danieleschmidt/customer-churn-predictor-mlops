@@ -8,6 +8,7 @@ from scripts.run_pipeline import run_pipeline
 from src.monitor_performance import monitor_and_retrain
 from scripts.run_prediction import run_predictions
 from .validation import DEFAULT_PATH_VALIDATOR, ValidationError
+from .data_validation import validate_customer_data, ValidationError as DataValidationError
 
 app = typer.Typer(help="Customer churn prediction command-line interface")
 
@@ -312,6 +313,121 @@ def predict(
         raise typer.Exit(1)
 
 
+@app.command()
+def validate(
+    data_file: str,
+    for_prediction: bool = typer.Option(False, "--for-prediction", help="Validate data for prediction (target variable not required)"),
+    detailed: bool = typer.Option(False, "--detailed", help="Generate detailed validation report"),
+    output: Optional[str] = typer.Option(None, "--output", help="Save validation report to specified file"),
+    check_distribution: bool = typer.Option(False, "--check-distribution", help="Check feature distributions for ML validation"),
+    no_business_rules: bool = typer.Option(False, "--no-business-rules", help="Skip business rule validation")
+) -> None:
+    """
+    Validate customer churn data with comprehensive checks.
+    
+    This command performs extensive validation of customer churn data including:
+    - Schema validation against expected data structure
+    - Business rule validation for data integrity  
+    - Data quality checks and outlier detection
+    - ML-specific validation for training and prediction data
+    
+    The validation helps ensure data quality before training or prediction,
+    preventing issues that could lead to poor model performance or failures.
+    
+    Parameters
+    ----------
+    data_file : str
+        Path to CSV file containing customer data to validate.
+    for_prediction : bool, default=False
+        If True, validates data for prediction (target variable not required).
+        Use this flag when validating data for batch predictions.
+    detailed : bool, default=False
+        If True, generates a detailed validation report with full statistics.
+        Otherwise, shows a summary of validation results.
+    output : str, optional
+        Path to save the validation report. If not specified, results are
+        printed to console only.
+    check_distribution : bool, default=False
+        If True, performs feature distribution checks for ML validation.
+        Useful for detecting data drift in prediction data.
+    no_business_rules : bool, default=False
+        If True, skips business rule validation. Use with caution as this
+        may allow inconsistent data to pass validation.
+    
+    Returns
+    -------
+    None
+        Validation results are printed to console or saved to file.
+        Exit code 0 indicates validation passed, 1 indicates failure.
+    
+    Examples
+    --------
+    >>> python -m src.cli validate data/raw/customer_data.csv
+    >>> python -m src.cli validate data/processed/features.csv --for-prediction
+    >>> python -m src.cli validate data/raw/customer_data.csv --detailed --output report.txt
+    
+    Raises
+    ------
+    ValidationError
+        If file cannot be read or critical validation setup fails.
+    typer.Exit
+        If data validation fails, exits with code 1.
+    """
+    try:
+        # Validate input file path
+        DEFAULT_PATH_VALIDATOR.validate_path(data_file, must_exist=True)
+        
+        # Perform data validation
+        kwargs = {
+            'check_distribution': check_distribution,
+            'check_business_rules': not no_business_rules
+        }
+        
+        if for_prediction:
+            from .data_validation import validate_prediction_data
+            report = validate_prediction_data(data_file)
+        else:
+            report = validate_customer_data(data_file, **kwargs)
+        
+        # Generate output
+        if detailed:
+            output_text = report.get_detailed_report()
+        else:
+            output_text = report.get_summary()
+            if not report.is_valid:
+                output_text += "\n\n🚨 ERRORS:\n"
+                for i, error in enumerate(report.errors[:5], 1):  # Show first 5 errors
+                    output_text += f"  {i}. {error}\n"
+                if len(report.errors) > 5:
+                    output_text += f"  ... and {len(report.errors) - 5} more errors\n"
+        
+        # Output results
+        if output:
+            DEFAULT_PATH_VALIDATOR.validate_path(output, allow_create=True)
+            with open(output, 'w') as f:
+                f.write(output_text)
+            typer.echo(f"📄 Validation report saved to: {output}")
+        
+        typer.echo(output_text)
+        
+        # Exit with appropriate code
+        if not report.is_valid:
+            typer.echo("❌ Data validation failed", err=True)
+            raise typer.Exit(1)
+        else:
+            typer.echo("✅ Data validation passed")
+    
+    except ValidationError as e:
+        typer.echo(f"File validation error: {e}", err=True)
+        raise typer.Exit(1)
+    except DataValidationError as e:
+        typer.echo(f"Data validation error: {e}", err=True)
+        raise typer.Exit(1)
+    except Exception as e:
+        typer.echo(f"Unexpected error: {e}", err=True)
+        raise typer.Exit(1)
+
+
 def main() -> None:
     """
     Entry point for the customer churn prediction CLI application.
@@ -327,6 +443,7 @@ def main() -> None:
     - pipeline: Run the complete ML workflow end-to-end
     - monitor: Check model performance and retrain if necessary
     - predict: Generate predictions for new customer data
+    - validate: Validate customer data with comprehensive quality checks
     
     Usage
     -----
