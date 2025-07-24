@@ -2,6 +2,7 @@ import joblib
 import pandas as pd
 import os
 import json
+from pathlib import Path
 from typing import Optional, Tuple, List, Dict, Any
 from .validation import safe_read_csv, safe_write_json, safe_read_json, safe_write_text, safe_read_text, ValidationError
 from .mlflow_utils import (
@@ -21,6 +22,7 @@ from .constants import (
 )
 from .logging_config import get_logger
 from .env_config import env_config
+from .model_cache import cached_load_model, cached_load_preprocessor, cached_load_metadata, get_cache_stats
 
 logger = get_logger(__name__)
 
@@ -80,58 +82,57 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
     if run_id is None:
         run_id = _get_run_id()
     
-    # Load model (same logic as single prediction)
-    if os.path.exists(MODEL_PATH):
-        try:
-            logger.info(f"Loading model from {MODEL_PATH}...")
-            model = joblib.load(MODEL_PATH)
-        except (FileNotFoundError, EOFError, OSError, RuntimeError) as e:
-            logger.error(f"Error loading model: {e}")
-            return None, None
-    elif run_id and is_mlflow_available():
-        try:
-            model = download_model_from_mlflow(run_id)
+    # Load model with caching
+    try:
+        if os.path.exists(MODEL_PATH):
+            logger.info(f"Loading model from {MODEL_PATH} (with caching)...")
+            model = cached_load_model(Path(MODEL_PATH), joblib.load, run_id=run_id)
+        elif run_id and is_mlflow_available():
+            # Download and cache model from MLflow
+            downloaded_model = download_model_from_mlflow(run_id)
             os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
-            joblib.dump(model, MODEL_PATH)
-            logger.info(f"Saved downloaded model to {MODEL_PATH}")
-        except MLflowError as e:
-            logger.error(f"Error downloading model from MLflow: {e}")
+            joblib.dump(downloaded_model, MODEL_PATH)
+            logger.info(f"Downloaded and saved model to {MODEL_PATH}")
+            model = cached_load_model(Path(MODEL_PATH), joblib.load, run_id=run_id)
+        else:
+            logger.error(f"Error: Model not found at {MODEL_PATH} and no run ID available")
             return None, None
-    else:
-        logger.error(f"Error: Model not found at {MODEL_PATH} and no run ID available")
+    except (FileNotFoundError, EOFError, OSError, RuntimeError, MLflowError) as e:
+        logger.error(f"Error loading model: {e}")
         return None, None
     
-    # Load preprocessor if available
-    if os.path.exists(PREPROCESSOR_PATH):
-        try:
-            preprocessor = joblib.load(PREPROCESSOR_PATH)
-        except (FileNotFoundError, EOFError, OSError, RuntimeError) as e:
-            logger.error(f"Error loading preprocessor: {e}")
-    elif run_id and is_mlflow_available():
-        try:
+    # Load preprocessor with caching if available
+    try:
+        if os.path.exists(PREPROCESSOR_PATH):
+            preprocessor = cached_load_preprocessor(Path(PREPROCESSOR_PATH), joblib.load, run_id=run_id)
+            logger.debug("Loaded preprocessor with caching")
+        elif run_id and is_mlflow_available():
             preprocessor_path = download_preprocessor_from_mlflow(run_id)
             preprocessor = joblib.load(preprocessor_path)
             os.makedirs(os.path.dirname(PREPROCESSOR_PATH), exist_ok=True)
             joblib.dump(preprocessor, PREPROCESSOR_PATH)
-        except (MLflowError, OSError, FileNotFoundError, RuntimeError) as e:
-            logger.error(f"Error downloading preprocessor from MLflow: {e}")
+            # Now cache the saved preprocessor
+            preprocessor = cached_load_preprocessor(Path(PREPROCESSOR_PATH), joblib.load, run_id=run_id)
+            logger.info("Downloaded, saved, and cached preprocessor")
+    except (MLflowError, OSError, FileNotFoundError, RuntimeError) as e:
+        logger.error(f"Error loading preprocessor: {e}")
+        preprocessor = None
     
-    # Load feature columns
+    # Load feature columns with caching
     columns: Optional[List[str]] = None
-    if os.path.exists(FEATURE_COLUMNS_PATH):
-        try:
-            columns = safe_read_json(FEATURE_COLUMNS_PATH)
-        except ValidationError as e:
-            logger.error(f"Error loading feature columns safely: {e}")
-            columns = None
-    
-    if columns is None and run_id and is_mlflow_available():
-        try:
+    try:
+        if os.path.exists(FEATURE_COLUMNS_PATH):
+            columns = cached_load_metadata(Path(FEATURE_COLUMNS_PATH), safe_read_json, run_id=run_id)
+            logger.debug("Loaded feature columns with caching")
+        elif run_id and is_mlflow_available():
             columns = download_feature_columns_from_mlflow(run_id)
             safe_write_json(columns, FEATURE_COLUMNS_PATH)
-        except (MLflowError, ValidationError) as e:
-            logger.error(f"Error downloading feature columns from MLflow: {e}")
-            columns = None
+            # Cache the saved columns
+            columns = cached_load_metadata(Path(FEATURE_COLUMNS_PATH), safe_read_json, run_id=run_id)
+            logger.info("Downloaded, saved, and cached feature columns")
+    except (MLflowError, ValidationError) as e:
+        logger.error(f"Error loading feature columns: {e}")
+        columns = None
     
     try:
         # Prepare the DataFrame for prediction
