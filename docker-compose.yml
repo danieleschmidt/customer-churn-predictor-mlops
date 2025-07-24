@@ -1,0 +1,206 @@
+version: '3.8'
+
+services:
+  # Main application service
+  churn-predictor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+      args:
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+        VERSION: ${VERSION:-1.0.0}
+        VCS_REF: ${VCS_REF:-unknown}
+    image: churn-predictor:${VERSION:-latest}
+    container_name: churn-predictor-app
+    ports:
+      - "8000:8000"
+    environment:
+      # Application configuration
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MODEL_CACHE_MAX_ENTRIES=${MODEL_CACHE_MAX_ENTRIES:-10}
+      - MODEL_CACHE_MAX_MEMORY_MB=${MODEL_CACHE_MAX_MEMORY_MB:-500}
+      - MODEL_CACHE_TTL_SECONDS=${MODEL_CACHE_TTL_SECONDS:-3600}
+      
+      # MLflow configuration (optional)
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-}
+      - MLFLOW_RUN_ID=${MLFLOW_RUN_ID:-}
+      
+      # Resource limits
+      - WORKERS=${WORKERS:-1}
+    volumes:
+      # Persistent data storage
+      - ./data:/app/data:rw
+      - ./models:/app/models:rw
+      - ./logs:/app/logs:rw
+      
+      # Configuration files (read-only)
+      - ./config.yml:/app/config.yml:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "from src.health_check import is_healthy; import sys; sys.exit(0 if is_healthy() else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - churn-net
+    labels:
+      - "com.terragon.service=churn-predictor"
+      - "com.terragon.environment=${ENVIRONMENT:-production}"
+      - "com.terragon.version=${VERSION:-1.0.0}"
+
+  # Development service with extended capabilities
+  churn-predictor-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+      args:
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+        VERSION: ${VERSION:-dev}
+        VCS_REF: ${VCS_REF:-unknown}
+    image: churn-predictor:dev
+    container_name: churn-predictor-dev
+    ports:
+      - "8001:8000"
+      - "8888:8888"  # Jupyter notebook port
+    environment:
+      - LOG_LEVEL=DEBUG
+      - MODEL_CACHE_MAX_ENTRIES=5
+      - MODEL_CACHE_MAX_MEMORY_MB=200
+      - MODEL_CACHE_TTL_SECONDS=1800
+      - ENVIRONMENT=development
+    volumes:
+      # Source code for live development
+      - .:/app:rw
+      # Exclude __pycache__ directories
+      - /app/__pycache__
+      - /app/src/__pycache__
+      - /app/tests/__pycache__
+    command: >
+      bash -c "
+        echo 'Starting development environment...' &&
+        python -m src.cli health-detailed &&
+        echo 'Development container ready. Use docker exec to interact.' &&
+        tail -f /dev/null
+      "
+    networks:
+      - churn-net
+    profiles:
+      - development
+
+  # MLflow tracking server (optional)
+  mlflow:
+    image: python:3.12-slim
+    container_name: churn-mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow/mlflow.db
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    volumes:
+      - mlflow-data:/mlflow
+    command: >
+      bash -c "
+        pip install mlflow==3.1.0 &&
+        mkdir -p /mlflow/artifacts &&
+        mlflow server 
+          --backend-store-uri sqlite:///mlflow/mlflow.db 
+          --default-artifact-root /mlflow/artifacts 
+          --host 0.0.0.0 
+          --port 5000
+      "
+    networks:
+      - churn-net
+    profiles:
+      - mlflow
+    labels:
+      - "com.terragon.service=mlflow"
+      - "com.terragon.environment=${ENVIRONMENT:-production}"
+
+  # Model training service (for batch jobs)
+  churn-trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: churn-predictor:${VERSION:-latest}
+    container_name: churn-trainer
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+    volumes:
+      - ./data:/app/data:rw
+      - ./models:/app/models:rw
+      - ./logs:/app/logs:rw
+    command: python -m src.cli pipeline
+    networks:
+      - churn-net
+    profiles:
+      - training
+    depends_on:
+      - mlflow
+    labels:
+      - "com.terragon.service=churn-trainer"
+      - "com.terragon.environment=${ENVIRONMENT:-production}"
+
+  # Monitoring and metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: churn-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - churn-net
+    profiles:
+      - monitoring
+    labels:
+      - "com.terragon.service=prometheus"
+
+  # Metrics visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: churn-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - churn-net
+    profiles:
+      - monitoring
+    depends_on:
+      - prometheus
+    labels:
+      - "com.terragon.service=grafana"
+
+# Named volumes for persistent data
+volumes:
+  mlflow-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+# Network configuration
+networks:
+  churn-net:
+    driver: bridge
+    labels:
+      - "com.terragon.network=churn-prediction"

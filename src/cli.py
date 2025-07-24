@@ -9,6 +9,8 @@ from src.monitor_performance import monitor_and_retrain
 from scripts.run_prediction import run_predictions
 from .validation import DEFAULT_PATH_VALIDATOR, ValidationError
 from .data_validation import validate_customer_data, ValidationError as DataValidationError
+from .health_check import get_health_status, get_comprehensive_health, get_readiness_status
+from .model_cache import get_cache_stats, invalidate_model_cache
 
 app = typer.Typer(help="Customer churn prediction command-line interface")
 
@@ -425,6 +427,271 @@ def validate(
         raise typer.Exit(1)
     except Exception as e:
         typer.echo(f"Unexpected error: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def health() -> None:
+    """
+    Check application health status.
+    
+    This command performs a basic health check to verify that the application
+    is running properly. It returns a simple status indicator suitable for
+    monitoring systems and basic health checks.
+    
+    The health check verifies:
+    - Application is responsive
+    - Service uptime information
+    - Basic system status
+    
+    Exit codes:
+    - 0: Application is healthy
+    - 1: Application has issues
+    """
+    import json
+    
+    try:
+        health_status = get_health_status()
+        typer.echo(json.dumps(health_status, indent=2))
+        
+        if health_status.get("status") == "healthy":
+            typer.echo("✅ Application is healthy")
+        else:
+            typer.echo("❌ Application has health issues", err=True)
+            raise typer.Exit(1)
+            
+    except Exception as e:
+        typer.echo(f"❌ Health check failed: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def health_detailed() -> None:
+    """
+    Check comprehensive application health with detailed diagnostics.
+    
+    This command performs an extensive health check that validates all
+    critical application components and dependencies. It provides detailed
+    diagnostic information for troubleshooting and monitoring.
+    
+    The comprehensive health check includes:
+    - Basic application status and uptime
+    - Model availability and age
+    - Data directory accessibility
+    - Configuration file validation
+    - Critical dependency availability
+    - Overall system health assessment
+    
+    This command is useful for:
+    - Detailed system diagnostics
+    - Pre-deployment health verification
+    - Troubleshooting application issues
+    - Monitoring system integration
+    
+    Exit codes:
+    - 0: Application is healthy or degraded (operational)
+    - 1: Application is unhealthy (requires attention)
+    """
+    import json
+    
+    try:
+        health_status = get_comprehensive_health()
+        typer.echo(json.dumps(health_status, indent=2))
+        
+        overall_status = health_status.get("overall_status", "unknown")
+        summary = health_status.get("summary", {})
+        
+        if overall_status == "healthy":
+            typer.echo("✅ Application is fully healthy")
+        elif overall_status == "degraded":
+            typer.echo("⚠️  Application is operational but degraded")
+            if summary.get("errors"):
+                typer.echo("Issues found:")
+                for error in summary["errors"][:5]:  # Show first 5 errors
+                    typer.echo(f"  - {error}")
+        else:
+            typer.echo("❌ Application is unhealthy", err=True)
+            if summary.get("errors"):
+                typer.echo("Critical issues found:")
+                for error in summary["errors"][:5]:  # Show first 5 errors
+                    typer.echo(f"  - {error}")
+            raise typer.Exit(1)
+            
+    except Exception as e:
+        typer.echo(f"❌ Comprehensive health check failed: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def ready() -> None:
+    """
+    Check application readiness for serving requests.
+    
+    This command performs a readiness check specifically designed for container
+    orchestration systems like Kubernetes. It verifies that the application
+    is ready to serve requests and handle workloads.
+    
+    The readiness check validates:
+    - Trained model availability
+    - Data directory accessibility  
+    - Critical dependencies loaded
+    - Essential services operational
+    
+    This command is typically used as:
+    - Kubernetes readiness probe
+    - Load balancer health check
+    - Container orchestration readiness gate
+    - Pre-traffic routing verification
+    
+    Exit codes:
+    - 0: Application is ready to serve requests
+    - 1: Application is not ready (should not receive traffic)
+    """
+    import json
+    
+    try:
+        readiness_status = get_readiness_status()
+        typer.echo(json.dumps(readiness_status, indent=2))
+        
+        if readiness_status.get("ready", False):
+            typer.echo("✅ Application is ready")
+        else:
+            typer.echo("❌ Application is not ready", err=True)
+            checks = readiness_status.get("checks", {})
+            failed_checks = [name for name, status in checks.items() if not status]
+            if failed_checks:
+                typer.echo(f"Failed readiness checks: {', '.join(failed_checks)}")
+            raise typer.Exit(1)
+            
+    except Exception as e:
+        typer.echo(f"❌ Readiness check failed: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def cache_stats() -> None:
+    """
+    Display model cache statistics and entry information.
+    
+    This command shows detailed statistics about the model cache including:
+    - Cache hit rate and performance metrics
+    - Memory usage and utilization
+    - Cached entries with access patterns
+    - Cache efficiency indicators
+    
+    The cache stores frequently accessed models, preprocessors, and metadata
+    to improve prediction performance by avoiding repeated file loading.
+    
+    Information displayed includes:
+    - Hit rate percentage and total requests
+    - Memory usage (current and maximum)
+    - Number of cached entries
+    - Individual entry details (age, access count, size)
+    
+    This command is useful for:
+    - Monitoring cache performance
+    - Tuning cache configuration
+    - Debugging cache-related issues
+    - Understanding memory usage patterns
+    """
+    import json
+    
+    try:
+        cache_info = get_cache_stats()
+        typer.echo("📊 Model Cache Statistics")
+        typer.echo("=" * 50)
+        
+        stats = cache_info["stats"]
+        
+        # Summary statistics
+        typer.echo(f"Entries: {stats['entries']}")
+        typer.echo(f"Memory Usage: {stats['memory_used_mb']:.2f} MB / {stats['max_memory_mb']:.2f} MB")
+        typer.echo(f"Memory Utilization: {stats['memory_utilization']:.1f}%")
+        typer.echo(f"Hit Rate: {stats['hit_rate']:.1f}%")
+        typer.echo(f"Total Requests: {stats['total_requests']}")
+        typer.echo(f"Cache Hits: {stats['hits']}")
+        typer.echo(f"Cache Misses: {stats['misses']}")
+        typer.echo(f"Evictions: {stats['evictions']}")
+        typer.echo(f"Invalidations: {stats['invalidations']}")
+        
+        # Entry details
+        entries = cache_info["entries"]
+        if entries:
+            typer.echo("\n📁 Cached Entries")
+            typer.echo("-" * 50)
+            for entry in entries:
+                typer.echo(f"Key: {entry['key']}")
+                typer.echo(f"  Age: {entry['age_seconds']:.1f}s")
+                typer.echo(f"  Accesses: {entry['access_count']}")
+                typer.echo(f"  Last Access: {entry['last_access_ago']:.1f}s ago")
+                typer.echo(f"  Size: {entry['size_mb']:.2f} MB")
+                if entry['file_path']:
+                    typer.echo(f"  File: {entry['file_path']}")
+                typer.echo("")
+        else:
+            typer.echo("\n📁 No cached entries")
+            
+    except Exception as e:
+        typer.echo(f"❌ Failed to get cache statistics: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def cache_clear(
+    confirm: bool = typer.Option(False, "--confirm", help="Confirm cache clearing without prompt")
+) -> None:
+    """
+    Clear the model cache to free memory.
+    
+    This command removes all cached models, preprocessors, and metadata
+    from memory. The next prediction requests will reload artifacts from
+    disk, which may be slower but ensures fresh data is used.
+    
+    Use this command when:
+    - Memory usage is too high
+    - Models have been updated and cache needs refresh
+    - Troubleshooting cache-related issues
+    - Forcing reload of all artifacts
+    
+    Parameters
+    ----------
+    confirm : bool, default=False
+        Skip confirmation prompt and immediately clear cache.
+        Use with caution in production environments.
+    
+    Exit codes:
+    - 0: Cache cleared successfully
+    - 1: Operation cancelled or error occurred
+    """
+    import json
+    
+    try:
+        # Get current cache info
+        cache_info = get_cache_stats()
+        stats = cache_info["stats"]
+        
+        if stats["entries"] == 0:
+            typer.echo("ℹ️  Cache is already empty")
+            return
+        
+        # Confirmation prompt unless --confirm used
+        if not confirm:
+            typer.echo(f"⚠️  About to clear cache with {stats['entries']} entries")
+            typer.echo(f"   Memory to free: {stats['memory_used_mb']:.2f} MB")
+            
+            if not typer.confirm("Are you sure you want to clear the cache?"):
+                typer.echo("❌ Cache clear cancelled")
+                raise typer.Exit(1)
+        
+        # Clear the cache
+        invalidate_model_cache()  # Clear entire cache
+        
+        typer.echo("✅ Model cache cleared successfully")
+        typer.echo(f"   Freed {stats['memory_used_mb']:.2f} MB of memory")
+        typer.echo(f"   Removed {stats['entries']} cached entries")
+        
+    except Exception as e:
+        typer.echo(f"❌ Failed to clear cache: {e}", err=True)
         raise typer.Exit(1)
 
 
