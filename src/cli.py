@@ -11,6 +11,7 @@ from .validation import DEFAULT_PATH_VALIDATOR, ValidationError
 from .data_validation import validate_customer_data, ValidationError as DataValidationError
 from .health_check import get_health_status, get_comprehensive_health, get_readiness_status
 from .model_cache import get_cache_stats, invalidate_model_cache
+from .metrics import get_prometheus_metrics, get_metrics_collector
 
 app = typer.Typer(help="Customer churn prediction command-line interface")
 
@@ -692,6 +693,49 @@ def cache_clear(
         
     except Exception as e:
         typer.echo(f"❌ Failed to clear cache: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def metrics() -> None:
+    """
+    Export Prometheus metrics for monitoring and observability.
+    
+    This command outputs application metrics in Prometheus exposition format,
+    suitable for scraping by Prometheus monitoring systems. Metrics include:
+    
+    - Prediction performance and latency
+    - Model accuracy and behavior
+    - Cache performance statistics  
+    - Health check durations and status
+    - Error counts and active requests
+    - System resource usage
+    
+    The output follows the Prometheus exposition format specification and
+    can be consumed by:
+    - Prometheus monitoring server
+    - Grafana for visualization
+    - AlertManager for alerting
+    - Custom monitoring tools
+    
+    Usage examples:
+    - Direct output: python -m src.cli metrics
+    - HTTP endpoint: curl http://localhost:8000/metrics
+    - Prometheus scraping: Configure as scrape target
+    
+    Exit codes:
+    - 0: Metrics exported successfully
+    - 1: Error generating metrics
+    """
+    try:
+        # Get metrics in Prometheus format
+        metrics_output = get_prometheus_metrics()
+        
+        # Output to stdout (standard for Prometheus exposition)
+        typer.echo(metrics_output, nl=False)
+        
+    except Exception as e:
+        typer.echo(f"❌ Failed to generate metrics: {e}", err=True)
         raise typer.Exit(1)
 
 

@@ -17,6 +17,7 @@ from datetime import datetime
 from .logging_config import get_logger
 from .validation import safe_read_json
 from .path_config import PathConfig
+from .metrics import get_metrics_collector
 
 logger = get_logger(__name__)
 
@@ -229,6 +230,7 @@ class HealthChecker:
             Dict containing all health check results
         """
         logger.info("Performing comprehensive health check")
+        start_time = time.time()
         
         health_results = {
             "overall_status": "healthy",
@@ -287,6 +289,14 @@ class HealthChecker:
         
         logger.info(f"Health check completed: {health_results['overall_status']} "
                    f"({health_results['summary']['healthy_checks']}/5 checks passed)")
+        
+        # Record health check metrics
+        try:
+            metrics_collector = get_metrics_collector()
+            duration = time.time() - start_time
+            metrics_collector.record_health_check_duration(duration, "detailed", health_results['overall_status'])
+        except Exception as e:
+            logger.warning(f"Failed to record health check metrics: {e}")
         
         return health_results
     
