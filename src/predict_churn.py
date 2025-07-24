@@ -2,6 +2,7 @@ import joblib
 import pandas as pd
 import os
 import json
+import time
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict, Any
 from .validation import safe_read_csv, safe_write_json, safe_read_json, safe_write_text, safe_read_text, ValidationError
@@ -23,6 +24,7 @@ from .constants import (
 from .logging_config import get_logger
 from .env_config import env_config
 from .model_cache import cached_load_model, cached_load_preprocessor, cached_load_metadata, get_cache_stats
+from .metrics import record_prediction_latency, record_prediction_count, record_model_accuracy, request_tracker
 
 logger = get_logger(__name__)
 
@@ -77,102 +79,114 @@ def make_batch_predictions(input_df: pd.DataFrame, run_id: Optional[str] = None)
     if input_df.empty:
         return [], []
     
-    model: Optional[Any] = None
-    preprocessor: Optional[Any] = None
-    if run_id is None:
-        run_id = _get_run_id()
-    
-    # Load model with caching
-    try:
-        if os.path.exists(MODEL_PATH):
-            logger.info(f"Loading model from {MODEL_PATH} (with caching)...")
-            model = cached_load_model(Path(MODEL_PATH), joblib.load, run_id=run_id)
-        elif run_id and is_mlflow_available():
-            # Download and cache model from MLflow
-            downloaded_model = download_model_from_mlflow(run_id)
-            os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
-            joblib.dump(downloaded_model, MODEL_PATH)
-            logger.info(f"Downloaded and saved model to {MODEL_PATH}")
-            model = cached_load_model(Path(MODEL_PATH), joblib.load, run_id=run_id)
-        else:
-            logger.error(f"Error: Model not found at {MODEL_PATH} and no run ID available")
-            return None, None
-    except (FileNotFoundError, EOFError, OSError, RuntimeError, MLflowError) as e:
-        logger.error(f"Error loading model: {e}")
-        return None, None
-    
-    # Load preprocessor with caching if available
-    try:
-        if os.path.exists(PREPROCESSOR_PATH):
-            preprocessor = cached_load_preprocessor(Path(PREPROCESSOR_PATH), joblib.load, run_id=run_id)
-            logger.debug("Loaded preprocessor with caching")
-        elif run_id and is_mlflow_available():
-            preprocessor_path = download_preprocessor_from_mlflow(run_id)
-            preprocessor = joblib.load(preprocessor_path)
-            os.makedirs(os.path.dirname(PREPROCESSOR_PATH), exist_ok=True)
-            joblib.dump(preprocessor, PREPROCESSOR_PATH)
-            # Now cache the saved preprocessor
-            preprocessor = cached_load_preprocessor(Path(PREPROCESSOR_PATH), joblib.load, run_id=run_id)
-            logger.info("Downloaded, saved, and cached preprocessor")
-    except (MLflowError, OSError, FileNotFoundError, RuntimeError) as e:
-        logger.error(f"Error loading preprocessor: {e}")
-        preprocessor = None
-    
-    # Load feature columns with caching
-    columns: Optional[List[str]] = None
-    try:
-        if os.path.exists(FEATURE_COLUMNS_PATH):
-            columns = cached_load_metadata(Path(FEATURE_COLUMNS_PATH), safe_read_json, run_id=run_id)
-            logger.debug("Loaded feature columns with caching")
-        elif run_id and is_mlflow_available():
-            columns = download_feature_columns_from_mlflow(run_id)
-            safe_write_json(columns, FEATURE_COLUMNS_PATH)
-            # Cache the saved columns
-            columns = cached_load_metadata(Path(FEATURE_COLUMNS_PATH), safe_read_json, run_id=run_id)
-            logger.info("Downloaded, saved, and cached feature columns")
-    except (MLflowError, ValidationError) as e:
-        logger.error(f"Error loading feature columns: {e}")
-        columns = None
-    
-    try:
-        # Prepare the DataFrame for prediction
-        if preprocessor is not None:
-            if columns is None:
-                columns = list(preprocessor.get_feature_names_out())
-                safe_write_json(columns, FEATURE_COLUMNS_PATH)
-            
-            # Check if input is raw or processed data
-            raw_features = set(getattr(preprocessor, "feature_names_in_", []))
-            if raw_features and set(input_df.columns).issubset(raw_features):
-                # Apply preprocessing to the entire DataFrame at once
-                X_proc = preprocessor.transform(input_df)
-                processed_df = pd.DataFrame(X_proc, columns=columns, index=input_df.index)
+    # Track this as a batch request
+    with request_tracker("batch_prediction"):
+        prediction_start_time = time.time()
+        
+        model: Optional[Any] = None
+        preprocessor: Optional[Any] = None
+        if run_id is None:
+            run_id = _get_run_id()
+        
+        # Load model with caching
+        try:
+            if os.path.exists(MODEL_PATH):
+                logger.info(f"Loading model from {MODEL_PATH} (with caching)...")
+                model = cached_load_model(Path(MODEL_PATH), joblib.load, run_id=run_id)
+            elif run_id and is_mlflow_available():
+                # Download and cache model from MLflow
+                downloaded_model = download_model_from_mlflow(run_id)
+                os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+                joblib.dump(downloaded_model, MODEL_PATH)
+                logger.info(f"Downloaded and saved model to {MODEL_PATH}")
+                model = cached_load_model(Path(MODEL_PATH), joblib.load, run_id=run_id)
             else:
-                # Data is already processed, just align columns
+                logger.error(f"Error: Model not found at {MODEL_PATH} and no run ID available")
+                record_prediction_count(len(input_df), "error", "batch")
+                return None, None
+        except (FileNotFoundError, EOFError, OSError, RuntimeError, MLflowError) as e:
+            logger.error(f"Error loading model: {e}")
+            record_prediction_count(len(input_df), "error", "batch")
+            return None, None
+        
+        # Load preprocessor with caching if available
+        try:
+            if os.path.exists(PREPROCESSOR_PATH):
+                preprocessor = cached_load_preprocessor(Path(PREPROCESSOR_PATH), joblib.load, run_id=run_id)
+                logger.debug("Loaded preprocessor with caching")
+            elif run_id and is_mlflow_available():
+                preprocessor_path = download_preprocessor_from_mlflow(run_id)
+                preprocessor = joblib.load(preprocessor_path)
+                os.makedirs(os.path.dirname(PREPROCESSOR_PATH), exist_ok=True)
+                joblib.dump(preprocessor, PREPROCESSOR_PATH)
+                # Now cache the saved preprocessor
+                preprocessor = cached_load_preprocessor(Path(PREPROCESSOR_PATH), joblib.load, run_id=run_id)
+                logger.info("Downloaded, saved, and cached preprocessor")
+        except (MLflowError, OSError, FileNotFoundError, RuntimeError) as e:
+            logger.error(f"Error loading preprocessor: {e}")
+            preprocessor = None
+        
+        # Load feature columns with caching
+        columns: Optional[List[str]] = None
+        try:
+            if os.path.exists(FEATURE_COLUMNS_PATH):
+                columns = cached_load_metadata(Path(FEATURE_COLUMNS_PATH), safe_read_json, run_id=run_id)
+                logger.debug("Loaded feature columns with caching")
+            elif run_id and is_mlflow_available():
+                columns = download_feature_columns_from_mlflow(run_id)
+                safe_write_json(columns, FEATURE_COLUMNS_PATH)
+                # Cache the saved columns
+                columns = cached_load_metadata(Path(FEATURE_COLUMNS_PATH), safe_read_json, run_id=run_id)
+                logger.info("Downloaded, saved, and cached feature columns")
+        except (MLflowError, ValidationError) as e:
+            logger.error(f"Error loading feature columns: {e}")
+            columns = None
+        
+        try:
+            # Prepare the DataFrame for prediction
+            if preprocessor is not None:
+                if columns is None:
+                    columns = list(preprocessor.get_feature_names_out())
+                    safe_write_json(columns, FEATURE_COLUMNS_PATH)
+                
+                # Check if input is raw or processed data
+                raw_features = set(getattr(preprocessor, "feature_names_in_", []))
+                if raw_features and set(input_df.columns).issubset(raw_features):
+                    # Apply preprocessing to the entire DataFrame at once
+                    X_proc = preprocessor.transform(input_df)
+                    processed_df = pd.DataFrame(X_proc, columns=columns, index=input_df.index)
+                else:
+                    # Data is already processed, just align columns
+                    processed_df = input_df.reindex(columns=columns, fill_value=0)
+            elif columns:
+                # Align DataFrame columns with expected feature order
                 processed_df = input_df.reindex(columns=columns, fill_value=0)
-        elif columns:
-            # Align DataFrame columns with expected feature order
-            processed_df = input_df.reindex(columns=columns, fill_value=0)
-        else:
-            # Use DataFrame as-is
-            processed_df = input_df
-        
-        logger.info(f"Making batch predictions for {len(processed_df)} samples...")
-        
-        # Vectorized prediction - much faster than iterating
-        predictions = model.predict(processed_df)
-        probabilities = model.predict_proba(processed_df)
-        
-        # Extract probabilities for positive class (churn=1)
-        churn_probabilities = probabilities[:, 1]
-        
-        logger.info(f"Completed batch predictions for {len(predictions)} samples")
-        
-        return predictions.tolist(), churn_probabilities.tolist()
-        
-    except (ValueError, KeyError, AttributeError, TypeError, IndexError) as e:
-        logger.error(f"Error during batch prediction: {e}")
-        return None, None
+            else:
+                # Use DataFrame as-is
+                processed_df = input_df
+            
+            logger.info(f"Making batch predictions for {len(processed_df)} samples...")
+            
+            # Vectorized prediction - much faster than iterating
+            predictions = model.predict(processed_df)
+            probabilities = model.predict_proba(processed_df)
+            
+            # Extract probabilities for positive class (churn=1)
+            churn_probabilities = probabilities[:, 1]
+            
+            logger.info(f"Completed batch predictions for {len(predictions)} samples")
+            
+            # Record successful prediction metrics
+            record_prediction_latency(prediction_start_time, "batch")
+            record_prediction_count(len(predictions), "success", "batch")
+            
+            return predictions.tolist(), churn_probabilities.tolist()
+            
+        except (ValueError, KeyError, AttributeError, TypeError, IndexError) as e:
+            logger.error(f"Error during batch prediction: {e}")
+            # Record error metrics
+            record_prediction_count(len(input_df) if not input_df.empty else 0, "error", "batch")
+            return None, None
 
 
 def make_prediction(input_data_dict: Dict[str, Any], run_id: Optional[str] = None) -> Tuple[Optional[int], Optional[float]]:

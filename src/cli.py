@@ -11,6 +11,9 @@ from .validation import DEFAULT_PATH_VALIDATOR, ValidationError
 from .data_validation import validate_customer_data, ValidationError as DataValidationError
 from .health_check import get_health_status, get_comprehensive_health, get_readiness_status
 from .model_cache import get_cache_stats, invalidate_model_cache
+from .metrics import get_prometheus_metrics, get_metrics_collector
+from .security import get_security_report, check_container_security, get_security_policies
+from .rate_limiter import get_rate_limiter, RateLimitRule, get_rate_limit_stats
 
 app = typer.Typer(help="Customer churn prediction command-line interface")
 
@@ -692,6 +695,468 @@ def cache_clear(
         
     except Exception as e:
         typer.echo(f"❌ Failed to clear cache: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def metrics() -> None:
+    """
+    Export Prometheus metrics for monitoring and observability.
+    
+    This command outputs application metrics in Prometheus exposition format,
+    suitable for scraping by Prometheus monitoring systems. Metrics include:
+    
+    - Prediction performance and latency
+    - Model accuracy and behavior
+    - Cache performance statistics  
+    - Health check durations and status
+    - Error counts and active requests
+    - System resource usage
+    
+    The output follows the Prometheus exposition format specification and
+    can be consumed by:
+    - Prometheus monitoring server
+    - Grafana for visualization
+    - AlertManager for alerting
+    - Custom monitoring tools
+    
+    Usage examples:
+    - Direct output: python -m src.cli metrics
+    - HTTP endpoint: curl http://localhost:8000/metrics
+    - Prometheus scraping: Configure as scrape target
+    
+    Exit codes:
+    - 0: Metrics exported successfully
+    - 1: Error generating metrics
+    """
+    try:
+        # Get metrics in Prometheus format
+        metrics_output = get_prometheus_metrics()
+        
+        # Output to stdout (standard for Prometheus exposition)
+        typer.echo(metrics_output, nl=False)
+        
+    except Exception as e:
+        typer.echo(f"❌ Failed to generate metrics: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def security_scan(
+    image: str = typer.Argument(..., help="Docker image to scan"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file for security report"),
+    format: str = typer.Option("json", "--format", "-f", help="Output format (json, table)"),
+    max_high: int = typer.Option(0, "--max-high", help="Maximum allowed high severity vulnerabilities"),
+    max_medium: int = typer.Option(5, "--max-medium", help="Maximum allowed medium severity vulnerabilities")
+) -> None:
+    """
+    Perform comprehensive security scan of Docker image.
+    
+    This command scans the specified Docker image for security vulnerabilities,
+    misconfigurations, and other security issues. It provides detailed reporting
+    and can be integrated into CI/CD pipelines for automated security checks.
+    
+    The security scan includes:
+    - Vulnerability assessment using Trivy scanner
+    - Container configuration analysis
+    - Security policy validation
+    - Image signature verification (if available)
+    - Dockerfile security analysis
+    
+    Parameters
+    ----------
+    image : str
+        Docker image to scan (e.g., "churn-predictor:latest")
+    output : str, optional
+        File path to save the security report
+    format : str, default="json"
+        Output format for the report (json, table)
+    max_high : int, default=0
+        Maximum allowed high severity vulnerabilities before failing
+    max_medium : int, default=5
+        Maximum allowed medium severity vulnerabilities before failing
+    
+    Exit codes:
+    - 0: Image passes security checks
+    - 1: Image fails security requirements or scan error
+    
+    Examples:
+    - Basic scan: python -m src.cli security-scan churn-predictor:latest
+    - With output: python -m src.cli security-scan --output report.json image:tag
+    - Strict policy: python -m src.cli security-scan --max-high 0 --max-medium 2 image:tag
+    """
+    import json
+    
+    try:
+        typer.echo(f"🔍 Starting security scan of: {image}")
+        
+        # Generate comprehensive security report
+        report = get_security_report(image)
+        
+        # Check if scan was successful
+        if "error" in report:
+            typer.echo(f"❌ Security scan failed: {report['error']}", err=True)
+            raise typer.Exit(1)
+        
+        # Evaluate security status
+        scan_result = report.get("scan_result", {})
+        is_secure = scan_result.get("is_secure", False)
+        
+        # Check vulnerability thresholds
+        high_count = scan_result.get("high_severity_count", 0)
+        medium_count = scan_result.get("medium_severity_count", 0)
+        total_count = scan_result.get("total_vulnerabilities", 0)
+        
+        # Display results
+        if format == "json":
+            if output:
+                with open(output, 'w') as f:
+                    json.dump(report, f, indent=2)
+                typer.echo(f"📄 Security report saved to: {output}")
+            else:
+                typer.echo(json.dumps(report, indent=2))
+        else:
+            # Table format summary
+            typer.echo("\n📊 Security Scan Summary")
+            typer.echo("=" * 50)
+            typer.echo(f"Image: {image}")
+            typer.echo(f"Scan Time: {report['timestamp']}")
+            typer.echo(f"Total Vulnerabilities: {total_count}")
+            typer.echo(f"High/Critical: {high_count}")
+            typer.echo(f"Medium: {medium_count}")
+            typer.echo(f"Security Score: {scan_result.get('security_score', 'N/A')}/100")
+            typer.echo(f"Signature Verified: {'✅' if report.get('signature_verified') else '❌'}")
+            
+            # Show recommendations
+            if report.get("recommendations"):
+                typer.echo("\n💡 Recommendations:")
+                for rec in report["recommendations"][:5]:
+                    typer.echo(f"  • {rec}")
+        
+        # Check thresholds and exit accordingly
+        if high_count > max_high:
+            typer.echo(f"❌ High severity vulnerabilities ({high_count}) exceed limit ({max_high})", err=True)
+            raise typer.Exit(1)
+        
+        if medium_count > max_medium:
+            typer.echo(f"❌ Medium severity vulnerabilities ({medium_count}) exceed limit ({max_medium})", err=True)
+            raise typer.Exit(1)
+        
+        if is_secure:
+            typer.echo("✅ Image passes security requirements")
+        else:
+            typer.echo("⚠️  Image has security concerns but within acceptable limits")
+            
+    except Exception as e:
+        typer.echo(f"❌ Security scan failed: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def security_policies() -> None:
+    """
+    Display security policies and recommendations.
+    
+    This command shows the security policies that should be applied
+    to container deployments, including runtime security measures,
+    network policies, and image requirements.
+    
+    The policies cover:
+    - Container runtime security
+    - Network access controls
+    - Image security requirements
+    - Resource limitations
+    - Security profiles (AppArmor, SELinux, seccomp)
+    
+    Use this command to:
+    - Review security requirements
+    - Configure Kubernetes security policies
+    - Understand security best practices
+    - Generate policy templates
+    
+    Exit codes:
+    - 0: Policies displayed successfully
+    - 1: Error retrieving policies
+    """
+    import json
+    
+    try:
+        typer.echo("🔐 Container Security Policies")
+        typer.echo("=" * 50)
+        
+        policies = get_security_policies()
+        
+        # Display policies in organized format
+        for category, category_policies in policies.items():
+            typer.echo(f"\n📋 {category.replace('_', ' ').title()}")
+            typer.echo("-" * 30)
+            
+            for policy_name, policy_config in category_policies.items():
+                enabled = policy_config.get("enabled", False)
+                status = "✅ Enabled" if enabled else "❌ Disabled"
+                typer.echo(f"  {policy_name.replace('_', ' ').title()}: {status}")
+                typer.echo(f"    {policy_config.get('description', 'No description')}")
+                
+                enforcement = policy_config.get("enforcement")
+                if enforcement:
+                    typer.echo(f"    Enforcement: {enforcement}")
+                
+                # Show specific configurations
+                if policy_name == "resource_limits" and "limits" in policy_config:
+                    limits = policy_config["limits"]
+                    typer.echo(f"    Memory: {limits.get('memory', 'Not set')}")
+                    typer.echo(f"    CPU: {limits.get('cpu', 'Not set')}")
+                
+                if policy_name == "base_image_restrictions" and "allowed_registries" in policy_config:
+                    registries = policy_config["allowed_registries"][:3]  # Show first 3
+                    typer.echo(f"    Allowed registries: {', '.join(registries)}")
+                
+                typer.echo("")
+        
+        typer.echo("💡 To implement these policies:")
+        typer.echo("  • Use Kubernetes Pod Security Policies/Standards")
+        typer.echo("  • Configure OPA Gatekeeper policies")
+        typer.echo("  • Apply Falco runtime security rules")
+        typer.echo("  • Use admission controllers")
+        
+    except Exception as e:
+        typer.echo(f"❌ Failed to retrieve security policies: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def rate_limit_stats() -> None:
+    """
+    Display rate limiting statistics and configuration.
+    
+    This command shows comprehensive statistics about the rate limiting system
+    including active rules, backend information, and current usage metrics.
+    
+    Information displayed includes:
+    - Rate limiting backend type (memory or Redis)
+    - Number of active rate limiting rules
+    - Rule configurations and limits
+    - Backend-specific statistics (Redis connection info, memory usage)
+    
+    The rate limiting system protects the API endpoints from abuse by limiting
+    the number of requests per client per time window. Different endpoints
+    have different limits based on their resource requirements.
+    
+    Exit codes:
+    - 0: Statistics displayed successfully
+    - 1: Error retrieving statistics
+    """
+    import json
+    
+    try:
+        typer.echo("📊 Rate Limiting Statistics")
+        typer.echo("=" * 50)
+        
+        stats = get_rate_limit_stats()
+        
+        # Display backend information
+        backend = stats.get("backend", "unknown")
+        typer.echo(f"Backend: {backend}")
+        
+        if backend == "redis":
+            typer.echo(f"Redis Version: {stats.get('redis_version', 'unknown')}")
+            typer.echo(f"Connected Clients: {stats.get('connected_clients', 0)}")
+            typer.echo(f"Memory Usage: {stats.get('used_memory', 'unknown')}")
+        elif backend == "memory":
+            typer.echo(f"Active Buckets: {stats.get('active_buckets', 0)}")
+        
+        typer.echo(f"Active Rules: {stats.get('rules', 0)}")
+        
+        # Display rule configurations
+        rules_config = stats.get("rules_config", {})
+        if rules_config:
+            typer.echo("\n📋 Rate Limiting Rules")
+            typer.echo("-" * 30)
+            
+            for rule_name, rule_config in rules_config.items():
+                typer.echo(f"\n{rule_name}:")
+                typer.echo(f"  Requests: {rule_config.get('requests', 'N/A')} per {rule_config.get('window_seconds', 'N/A')}s")
+                typer.echo(f"  Burst Size: {rule_config.get('burst_size', 'N/A')}")
+                typer.echo(f"  Per IP: {'Yes' if rule_config.get('per_ip', False) else 'No'}")
+                typer.echo(f"  Per Endpoint: {'Yes' if rule_config.get('per_endpoint', False) else 'No'}")
+                
+                description = rule_config.get('description', '')
+                if description:
+                    typer.echo(f"  Description: {description}")
+        else:
+            typer.echo("\n📋 No rate limiting rules configured")
+        
+        typer.echo("\n💡 Rate limiting protects API endpoints from abuse")
+        typer.echo("   Configure rules using: python -m src.cli rate-limit-add")
+        
+    except Exception as e:
+        typer.echo(f"❌ Failed to get rate limiting statistics: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def rate_limit_add(
+    rule_key: str = typer.Argument(..., help="Rule identifier (e.g., 'predict', 'health', 'admin')"),
+    requests: int = typer.Option(..., "--requests", "-r", help="Maximum requests allowed"),
+    window_seconds: int = typer.Option(..., "--window", "-w", help="Time window in seconds"),
+    burst_size: Optional[int] = typer.Option(None, "--burst", "-b", help="Maximum burst size"),
+    description: str = typer.Option("", "--description", "-d", help="Rule description"),
+    per_ip: bool = typer.Option(True, "--per-ip/--no-per-ip", help="Apply rate limit per IP address"),
+    per_endpoint: bool = typer.Option(True, "--per-endpoint/--no-per-endpoint", help="Apply rate limit per endpoint")
+) -> None:
+    """
+    Add or update a rate limiting rule.
+    
+    This command creates or updates a rate limiting rule for API endpoints.
+    Rate limiting rules control how many requests clients can make within
+    a specified time window, helping prevent abuse and ensure fair usage.
+    
+    Parameters:
+    - rule_key: Unique identifier for the rule (e.g., 'predict', 'health')
+    - requests: Maximum number of requests allowed in the time window
+    - window_seconds: Duration of the time window in seconds
+    - burst_size: Maximum burst capacity (defaults to 25% of requests if not specified)
+    - description: Human-readable description of the rule
+    - per_ip: Whether to apply the limit per client IP address
+    - per_endpoint: Whether to apply the limit per API endpoint
+    
+    Common rule examples:
+    - High-traffic endpoints: 200 requests per 60 seconds
+    - Prediction endpoints: 30 requests per 60 seconds
+    - Admin endpoints: 10 requests per 60 seconds
+    - Training endpoints: 5 requests per 300 seconds
+    
+    Exit codes:
+    - 0: Rule added successfully
+    - 1: Error adding rule
+    
+    Examples:
+    --------
+    >>> python -m src.cli rate-limit-add predict --requests 30 --window 60 --burst 10
+    >>> python -m src.cli rate-limit-add admin --requests 10 --window 60 --description "Admin endpoints"
+    """
+    try:
+        # Create rate limit rule
+        rule = RateLimitRule(
+            requests=requests,
+            window_seconds=window_seconds,
+            burst_size=burst_size,
+            per_ip=per_ip,
+            per_endpoint=per_endpoint,
+            description=description
+        )
+        
+        # Add rule to rate limiter
+        rate_limiter = get_rate_limiter()
+        rate_limiter.add_rule(rule_key, rule)
+        
+        typer.echo(f"✅ Rate limiting rule added: {rule_key}")
+        typer.echo(f"   Requests: {requests} per {window_seconds} seconds")
+        
+        if burst_size:
+            typer.echo(f"   Burst Size: {burst_size}")
+        else:
+            typer.echo(f"   Burst Size: {rule.burst_size} (auto-calculated)")
+        
+        typer.echo(f"   Per IP: {'Yes' if per_ip else 'No'}")
+        typer.echo(f"   Per Endpoint: {'Yes' if per_endpoint else 'No'}")
+        
+        if description:
+            typer.echo(f"   Description: {description}")
+        
+        typer.echo("\n💡 Rule is now active for API endpoints")
+        
+    except Exception as e:
+        typer.echo(f"❌ Failed to add rate limiting rule: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("0.0.0.0", "--host", "-h", help="Host to bind to"),
+    port: int = typer.Option(8000, "--port", "-p", help="Port to bind to"),
+    workers: int = typer.Option(1, "--workers", "-w", help="Number of worker processes"),
+    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload for development"),
+    log_level: str = typer.Option("info", "--log-level", help="Log level (debug, info, warning, error)")
+) -> None:
+    """
+    Start the FastAPI web server with rate limiting.
+    
+    This command starts the REST API server that exposes CLI functionality
+    through HTTP endpoints with comprehensive rate limiting, monitoring,
+    and security features.
+    
+    The API server provides:
+    - Machine learning prediction endpoints
+    - Health and readiness checks
+    - Prometheus metrics export
+    - Data validation endpoints
+    - Admin and security management
+    - Interactive OpenAPI documentation
+    
+    Parameters:
+    - host: IP address to bind the server to (0.0.0.0 for all interfaces)
+    - port: TCP port to listen on (default: 8000)
+    - workers: Number of worker processes for production (default: 1)
+    - reload: Enable automatic reloading for development (default: False)
+    - log_level: Logging verbosity level
+    
+    The server includes automatic rate limiting for all endpoints:
+    - Default: 100 requests per minute
+    - Predictions: 30 requests per minute (burst: 10)
+    - Health checks: 200 requests per minute
+    - Training: 5 requests per 5 minutes
+    - Admin: 10 requests per minute
+    
+    Access the interactive API documentation at:
+    - Swagger UI: http://localhost:8000/docs
+    - ReDoc: http://localhost:8000/redoc
+    
+    Exit codes:
+    - 0: Server started successfully
+    - 1: Server startup failed
+    
+    Examples:
+    --------
+    >>> python -m src.cli serve --port 8000
+    >>> python -m src.cli serve --host 127.0.0.1 --port 8080 --reload
+    >>> python -m src.cli serve --workers 4 --log-level debug
+    """
+    try:
+        import uvicorn
+        from .api import app as fastapi_app
+        
+        typer.echo(f"🚀 Starting Customer Churn Prediction API")
+        typer.echo(f"   Host: {host}")
+        typer.echo(f"   Port: {port}")
+        typer.echo(f"   Workers: {workers}")
+        typer.echo(f"   Reload: {reload}")
+        typer.echo(f"   Log Level: {log_level}")
+        typer.echo("")
+        typer.echo(f"📚 API Documentation:")
+        typer.echo(f"   Swagger UI: http://{host}:{port}/docs")
+        typer.echo(f"   ReDoc: http://{host}:{port}/redoc")
+        typer.echo("")
+        typer.echo("🔒 Rate limiting is active for all endpoints")
+        typer.echo("⚡ Starting server...")
+        
+        # Start the server
+        uvicorn.run(
+            "src.api:app",
+            host=host,
+            port=port,
+            workers=workers,
+            reload=reload,
+            log_level=log_level,
+            access_log=True
+        )
+        
+    except ImportError:
+        typer.echo("❌ FastAPI dependencies not installed", err=True)
+        typer.echo("   Install with: pip install fastapi uvicorn[standard]", err=True)
+        raise typer.Exit(1)
+    except Exception as e:
+        typer.echo(f"❌ Failed to start API server: {e}", err=True)
         raise typer.Exit(1)
 
 
