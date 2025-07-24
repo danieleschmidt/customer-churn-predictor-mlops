@@ -133,14 +133,20 @@ case "${1}" in
         wait_for_dependencies
         validate_data
         
-        log "Starting application server..."
+        log "Starting FastAPI application server with rate limiting..."
         shift
-        exec gunicorn \
-            --bind 0.0.0.0:8000 \
-            --workers "${WORKERS:-1}" \
-            --worker-class uvicorn.workers.UvicornWorker \
-            --access-logfile - \
-            --error-logfile - \
+        
+        # Extract server configuration from environment
+        HOST="${HOST:-0.0.0.0}"
+        PORT="${PORT:-8000}"
+        WORKERS="${WORKERS:-1}"
+        LOG_LEVEL="${LOG_LEVEL:-info}"
+        
+        # Use CLI serve command for consistent configuration
+        exec python -m src.cli serve \
+            --host "${HOST}" \
+            --port "${PORT}" \
+            --workers "${WORKERS}" \
             --log-level "${LOG_LEVEL,,}" \
             "$@"
         ;;
@@ -188,6 +194,12 @@ case "${1}" in
         else
             exec python -m src.cli health
         fi
+        ;;
+        
+    "metrics")
+        # Metrics endpoint mode
+        validate_env
+        exec python -m src.cli metrics
         ;;
         
     "cache")
