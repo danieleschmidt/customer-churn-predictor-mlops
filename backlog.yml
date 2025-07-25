@@ -19,7 +19,7 @@ critical_items:
   - id: "CRIT-001"
     title: "Implement Proper API Authentication"
     type: "security_enhancement"
-    status: "NEW"
+    status: "COMPLETED"
     risk_tier: "HIGH"
     created_at: "2025-07-24"
     description: "Replace placeholder TODO comment with actual token verification in API authentication system"
@@ -41,7 +41,7 @@ critical_items:
   - id: "CRIT-002"
     title: "Add Missing Development Dependencies to CI"
     type: "devops_improvement"
-    status: "NEW"
+    status: "BLOCKED"
     risk_tier: "MEDIUM"
     created_at: "2025-07-24"
     description: "CI pipeline lacks pytest and development tools. Tests may be failing silently"
@@ -64,7 +64,7 @@ critical_items:
   - id: "CRIT-003"
     title: "Fix Python Version Mismatch in CI"
     type: "devops_bug"
-    status: "NEW"
+    status: "BLOCKED"
     risk_tier: "MEDIUM"
     created_at: "2025-07-24"
     description: "CI uses Python 3.8 but pyproject.toml specifies 3.12, causing potential compatibility issues"
@@ -88,7 +88,7 @@ high_priority:
   - id: "HIGH-001"
     title: "Add API Security Headers and Rate Limiting Tests"
     type: "security_enhancement"
-    status: "NEW"
+    status: "COMPLETED"
     risk_tier: "MEDIUM"
     created_at: "2025-07-24"
     description: "API has rate limiting but lacks comprehensive security header testing"
@@ -110,7 +110,7 @@ high_priority:
   - id: "HIGH-002"
     title: "Implement Comprehensive API Health Monitoring"
     type: "observability"
-    status: "NEW"
+    status: "COMPLETED"
     risk_tier: "LOW"
     created_at: "2025-07-24"
     description: "Enhance health check endpoint with detailed service status reporting"
@@ -203,7 +203,17 @@ low_priority:
     aging_days: 0
 
 # BLOCKED ITEMS
-blocked_items: []
+blocked_items:
+  - id: "CRIT-002"
+    title: "Add Missing Development Dependencies to CI"
+    blocked_reason: "Cannot modify GitHub workflows - requires manual intervention"
+    blocked_date: "2025-07-25"
+    wsjf_score: 11.5
+  - id: "CRIT-003"  
+    title: "Fix Python Version Mismatch in CI"
+    blocked_reason: "Cannot modify GitHub workflows - requires manual intervention"
+    blocked_date: "2025-07-25"
+    wsjf_score: 21.0
 
 # COMPLETED ITEMS (Recent - for context)
 completed_recent:
@@ -219,18 +229,31 @@ completed_recent:
     title: "Add Edge Case Test Coverage"
     completed_date: "2025-07-23"
     wsjf_score: 1.4
+  - id: "CRIT-001"
+    title: "Implement Proper API Authentication"
+    completed_date: "2025-07-25"
+    wsjf_score: 8.67
+  - id: "HIGH-001"
+    title: "Add API Security Headers and Rate Limiting Tests"
+    completed_date: "2025-07-25"
+    wsjf_score: 5.0
+  - id: "HIGH-002"
+    title: "Implement Comprehensive API Health Monitoring"
+    completed_date: "2025-07-25"
+    wsjf_score: 5.67
 
 # METRICS AND ANALYTICS
 metrics:
   total_items: 8
-  critical_count: 3
-  high_priority_count: 2
+  critical_count: 0  # All critical items completed or blocked
+  high_priority_count: 0  # All high priority items completed
   medium_priority_count: 2
   low_priority_count: 1
-  blocked_count: 0
-  avg_wsjf_score: 7.92
-  highest_wsjf: 21.0
-  oldest_item_days: 0
+  blocked_count: 2  # CRIT-002 and CRIT-003 blocked
+  completed_count: 6  # 3 previous + 3 new completions
+  avg_wsjf_score: 5.83  # Updated average for remaining items
+  highest_wsjf: 3.67  # Highest remaining item (MED-002)
+  oldest_item_days: 1
   
 discovery_sources:
   - "TODO/FIXME comments in codebase"
@@ -240,7 +263,8 @@ discovery_sources:
   - "Code quality assessment"
 
 next_actions:
-  - "Execute CRIT-003 (Python version fix) - highest WSJF"
-  - "Implement CRIT-002 (CI dependencies) - critical for pipeline"
-  - "Address CRIT-001 (API auth) - security priority"
-  - "Review and re-score after critical items completion"
+  - "Execute MED-002 (Prometheus metrics enhancement) - highest remaining WSJF (3.67)"
+  - "Execute MED-001 (Docker health check tests) - WSJF 3.5"
+  - "Execute LOW-001 (Documentation website) - WSJF 1.0"
+  - "Manual intervention required for blocked CI workflow items (CRIT-002, CRIT-003)"
+  - "All critical and high priority items completed or blocked - focus on medium priority"

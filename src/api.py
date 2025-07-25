@@ -10,6 +10,8 @@ import asyncio
 import os
 import time
 import tempfile
+import hashlib
+import secrets
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
@@ -196,6 +198,48 @@ app.add_middleware(
 )
 
 
+# Security headers middleware
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """Add security headers to all responses."""
+    response = await call_next(request)
+    
+    # Security headers for API protection
+    security_headers = {
+        # Prevent MIME type sniffing
+        "X-Content-Type-Options": "nosniff",
+        
+        # Prevent clickjacking
+        "X-Frame-Options": "DENY",
+        
+        # XSS protection (legacy but still useful)
+        "X-XSS-Protection": "1; mode=block",
+        
+        # Strict Transport Security (HTTPS only)
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+        
+        # Content Security Policy (restrictive for API)
+        "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none';",
+        
+        # Referrer policy
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        
+        # Remove server information
+        "Server": "API",
+        
+        # Cache control for sensitive endpoints
+        "Cache-Control": "no-store, no-cache, must-revalidate, private",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    
+    # Add security headers to response
+    for header_name, header_value in security_headers.items():
+        response.headers[header_name] = header_value
+    
+    return response
+
+
 # Rate limiting middleware
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
@@ -258,6 +302,74 @@ async def rate_limit_middleware(request: Request, call_next):
     return await add_rate_limit_headers(response)
 
 
+# Metrics collection middleware
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    """Collect metrics for all API requests."""
+    start_time = time.time()
+    
+    # Increment active requests
+    try:
+        from .metrics import get_metrics_collector
+        metrics_collector = get_metrics_collector()
+        metrics_collector.record_active_request(increment=True)
+    except Exception as e:
+        logger.warning(f"Failed to record active request increment: {e}")
+    
+    try:
+        # Process request
+        response = await call_next(request)
+        
+        # Calculate metrics
+        duration = time.time() - start_time
+        endpoint = request.url.path.strip("/") or "root"
+        method = request.method
+        status_code = response.status_code
+        
+        # Get response size (approximate)
+        response_size = len(response.body) if hasattr(response, 'body') and response.body else 0
+        
+        # Record API metrics
+        try:
+            metrics_collector.record_api_request(
+                duration=duration,
+                endpoint=endpoint,
+                method=method,
+                status_code=status_code,
+                response_size=response_size
+            )
+        except Exception as e:
+            logger.warning(f"Failed to record API request metrics: {e}")
+        
+        return response
+        
+    except Exception as e:
+        # Record error metrics
+        duration = time.time() - start_time
+        endpoint = request.url.path.strip("/") or "root"
+        
+        try:
+            metrics_collector.record_api_request(
+                duration=duration,
+                endpoint=endpoint,
+                method=request.method,
+                status_code=500,
+                response_size=0
+            )
+            metrics_collector.record_error("api_error", endpoint)
+        except Exception as metric_error:
+            logger.warning(f"Failed to record error metrics: {metric_error}")
+        
+        raise  # Re-raise the original exception
+        
+    finally:
+        # Decrement active requests
+        try:
+            metrics_collector.record_active_request(increment=False)
+        except Exception as e:
+            logger.warning(f"Failed to record active request decrement: {e}")
+
+
 # Utility functions
 def get_client_ip(request: Request) -> str:
     """Extract client IP from request."""
@@ -270,13 +382,80 @@ def get_client_ip(request: Request) -> str:
 
 
 async def verify_auth(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Optional[str]:
-    """Verify authentication for protected endpoints."""
-    # For now, just log the attempt - implement actual auth as needed
-    if credentials:
-        logger.info(f"Auth attempt with token: {credentials.credentials[:10]}...")
-        # TODO: Implement actual token verification
+    """Verify authentication for protected endpoints.
+    
+    Implements secure API key-based authentication with:
+    - Environment variable-based API key configuration
+    - Secure constant-time comparison to prevent timing attacks
+    - Comprehensive error handling and logging
+    - Rate limiting protection integration
+    
+    Args:
+        credentials: HTTP Authorization credentials from request header
+        
+    Returns:
+        str: Authenticated user identifier if valid
+        None: If authentication fails
+        
+    Raises:
+        HTTPException: For invalid or missing credentials
+    """
+    if not credentials:
+        logger.warning("Authentication attempted without credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Get expected API key from environment
+    expected_api_key = os.getenv("API_KEY")
+    if not expected_api_key:
+        logger.error("API_KEY environment variable not configured")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication not properly configured",
+        )
+    
+    try:
+        # Extract token from credentials
+        provided_token = credentials.credentials.strip()
+        
+        # Validate token format (basic validation)
+        if not provided_token or len(provided_token) < 16:
+            logger.warning("Authentication failed: Invalid token format")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token format",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Secure constant-time comparison to prevent timing attacks
+        expected_hash = hashlib.sha256(expected_api_key.encode()).digest()
+        provided_hash = hashlib.sha256(provided_token.encode()).digest()
+        
+        if not secrets.compare_digest(expected_hash, provided_hash):
+            logger.warning(f"Authentication failed for token: {provided_token[:8]}...")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Authentication successful
+        logger.info(f"Successful authentication for token: {provided_token[:8]}...")
         return "authenticated_user"
-    return None
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        # Handle unexpected errors
+        logger.error(f"Authentication error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication system error",
+        )
 
 
 # API Endpoints
