@@ -10,9 +10,17 @@ import json
 import time
 import logging
 import os
+import platform
+import subprocess
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 from datetime import datetime
+
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 
 from .logging_config import get_logger
 from .validation import safe_read_json
@@ -222,6 +230,269 @@ class HealthChecker:
         
         return dependencies_status
     
+    def check_database_connectivity(self) -> Dict[str, Any]:
+        """
+        Check database connectivity (if applicable).
+        
+        Returns:
+            Dict containing database connectivity status
+        """
+        db_status = {
+            "database_connected": True,
+            "database_type": "file_based",
+            "connection_details": {},
+            "errors": []
+        }
+        
+        try:
+            # For this MLOps system, check if MLflow tracking store is accessible
+            mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
+            
+            if mlflow_uri.startswith("file:"):
+                # File-based tracking store
+                tracking_path = Path(mlflow_uri.replace("file:", ""))
+                db_status["connection_details"] = {
+                    "tracking_uri": mlflow_uri,
+                    "path_exists": tracking_path.exists(),
+                    "path_writable": os.access(tracking_path.parent, os.W_OK) if tracking_path.parent.exists() else False
+                }
+                
+                if not tracking_path.parent.exists():
+                    db_status["database_connected"] = False
+                    db_status["errors"].append("MLflow tracking directory parent not accessible")
+                    
+            elif mlflow_uri.startswith(("http://", "https://")):
+                # Remote MLflow server
+                db_status["database_type"] = "remote_mlflow"
+                db_status["connection_details"] = {"tracking_uri": mlflow_uri}
+                
+                try:
+                    # Try to connect to MLflow server
+                    import mlflow
+                    mlflow.set_tracking_uri(mlflow_uri)
+                    # Simple check - list experiments (should not raise if connected)
+                    experiments = mlflow.search_experiments(max_results=1)
+                    db_status["connection_details"]["experiments_accessible"] = True
+                except Exception as e:
+                    db_status["database_connected"] = False
+                    db_status["errors"].append(f"MLflow server connection failed: {str(e)}")
+            else:
+                # Other database types (PostgreSQL, MySQL, etc.)
+                db_status["database_type"] = "external"
+                db_status["connection_details"] = {"tracking_uri": mlflow_uri}
+                # For now, assume connection is okay if URI is configured
+                
+        except Exception as e:
+            logger.error(f"Error checking database connectivity: {e}")
+            db_status["database_connected"] = False
+            db_status["errors"].append(f"Database check error: {str(e)}")
+        
+        return db_status
+    
+    def check_mlflow_service(self) -> Dict[str, Any]:
+        """
+        Check MLflow service availability and status.
+        
+        Returns:
+            Dict containing MLflow service status
+        """
+        mlflow_status = {
+            "mlflow_available": False,
+            "mlflow_version": None,
+            "tracking_uri": None,
+            "experiments_count": 0,
+            "latest_run": None,
+            "errors": []
+        }
+        
+        try:
+            # Check if MLflow is importable
+            import mlflow
+            mlflow_status["mlflow_version"] = mlflow.__version__
+            mlflow_status["mlflow_available"] = True
+            
+            # Get tracking URI
+            tracking_uri = mlflow.get_tracking_uri()
+            mlflow_status["tracking_uri"] = tracking_uri
+            
+            # Try to access experiments
+            try:
+                experiments = mlflow.search_experiments()
+                mlflow_status["experiments_count"] = len(experiments)
+                
+                # Get latest run info if available
+                if experiments:
+                    latest_experiment = experiments[0]
+                    runs = mlflow.search_runs(
+                        experiment_ids=[latest_experiment.experiment_id],
+                        max_results=1,
+                        order_by=["start_time DESC"]
+                    )
+                    
+                    if not runs.empty:
+                        latest_run = runs.iloc[0]
+                        mlflow_status["latest_run"] = {
+                            "run_id": latest_run["run_id"],
+                            "status": latest_run["status"],
+                            "start_time": str(latest_run["start_time"]),
+                            "experiment_id": latest_run["experiment_id"]
+                        }
+                        
+            except Exception as e:
+                mlflow_status["errors"].append(f"MLflow tracking access error: {str(e)}")
+                
+        except ImportError:
+            mlflow_status["errors"].append("MLflow not installed or not importable")
+        except Exception as e:
+            logger.error(f"Error checking MLflow service: {e}")
+            mlflow_status["errors"].append(f"MLflow service check error: {str(e)}")
+        
+        return mlflow_status
+    
+    def check_resource_usage(self) -> Dict[str, Any]:
+        """
+        Check system resource usage metrics.
+        
+        Returns:
+            Dict containing resource usage information
+        """
+        resource_status = {
+            "resources_healthy": True,
+            "cpu": {},
+            "memory": {},
+            "disk": {},
+            "system": {},
+            "warnings": []
+        }
+        
+        if not PSUTIL_AVAILABLE:
+            resource_status["warnings"].append("psutil not available - resource monitoring limited")
+            resource_status["system"] = {
+                "platform": platform.platform(),
+                "python_version": platform.python_version(),
+                "psutil_available": False
+            }
+            # Still consider healthy if psutil is missing (graceful degradation)
+            return resource_status
+        
+        try:
+            # CPU information
+            cpu_percent = psutil.cpu_percent(interval=1)
+            cpu_count = psutil.cpu_count()
+            resource_status["cpu"] = {
+                "usage_percent": cpu_percent,
+                "cpu_count": cpu_count,
+                "load_average": os.getloadavg() if hasattr(os, 'getloadavg') else None
+            }
+            
+            # Memory information
+            memory = psutil.virtual_memory()
+            resource_status["memory"] = {
+                "total_gb": round(memory.total / (1024**3), 2),
+                "available_gb": round(memory.available / (1024**3), 2),
+                "used_gb": round(memory.used / (1024**3), 2),
+                "usage_percent": memory.percent
+            }
+            
+            # Disk information (for current working directory)
+            disk = psutil.disk_usage('.')
+            resource_status["disk"] = {
+                "total_gb": round(disk.total / (1024**3), 2),
+                "free_gb": round(disk.free / (1024**3), 2),
+                "used_gb": round(disk.used / (1024**3), 2),
+                "usage_percent": round((disk.used / disk.total) * 100, 2)
+            }
+            
+            # System information
+            boot_time = datetime.fromtimestamp(psutil.boot_time())
+            resource_status["system"] = {
+                "platform": platform.platform(),
+                "python_version": platform.python_version(),
+                "boot_time": boot_time.isoformat(),
+                "uptime_hours": round((time.time() - psutil.boot_time()) / 3600, 2),
+                "psutil_available": True
+            }
+            
+            # Check for resource warnings
+            if cpu_percent > 80:
+                resource_status["warnings"].append(f"High CPU usage: {cpu_percent}%")
+                resource_status["resources_healthy"] = False
+                
+            if memory.percent > 85:
+                resource_status["warnings"].append(f"High memory usage: {memory.percent}%")
+                resource_status["resources_healthy"] = False
+                
+            if resource_status["disk"]["usage_percent"] > 90:
+                resource_status["warnings"].append(f"High disk usage: {resource_status['disk']['usage_percent']}%")
+                resource_status["resources_healthy"] = False
+                
+        except Exception as e:
+            logger.error(f"Error checking resource usage: {e}")
+            resource_status["resources_healthy"] = False
+            resource_status["warnings"].append(f"Resource check error: {str(e)}")
+        
+        return resource_status
+    
+    def check_dependency_versions(self) -> Dict[str, Any]:
+        """
+        Check and report versions of critical dependencies.
+        
+        Returns:
+            Dict containing dependency version information
+        """
+        version_status = {
+            "versions_collected": True,
+            "package_versions": {},
+            "version_conflicts": [],
+            "outdated_packages": [],
+            "errors": []
+        }
+        
+        # Critical packages to check
+        critical_packages = [
+            "pandas", "numpy", "scikit-learn", "joblib", 
+            "typer", "fastapi", "uvicorn", "pydantic"
+        ]
+        
+        # Optional packages
+        optional_packages = ["mlflow", "pytest", "black", "flake8", "mypy"]
+        
+        try:
+            for package in critical_packages + optional_packages:
+                try:
+                    module = __import__(package)
+                    version = getattr(module, '__version__', 'unknown')
+                    version_status["package_versions"][package] = {
+                        "version": version,
+                        "status": "installed",
+                        "required": package in critical_packages
+                    }
+                except ImportError:
+                    version_status["package_versions"][package] = {
+                        "version": None,
+                        "status": "not_installed",
+                        "required": package in critical_packages
+                    }
+                    if package in critical_packages:
+                        version_status["errors"].append(f"Critical package missing: {package}")
+                        
+            # Check Python version compatibility
+            python_version = platform.python_version()
+            version_status["python_version"] = python_version
+            
+            # Basic version conflict detection (simplified)
+            if version_status["package_versions"].get("pandas", {}).get("version", "").startswith("2."):
+                numpy_version = version_status["package_versions"].get("numpy", {}).get("version", "")
+                if numpy_version and numpy_version < "1.20":
+                    version_status["version_conflicts"].append("Pandas 2.x requires NumPy >= 1.20")
+                    
+        except Exception as e:
+            logger.error(f"Error checking dependency versions: {e}")
+            version_status["versions_collected"] = False
+            version_status["errors"].append(f"Version check error: {str(e)}")
+        
+        return version_status
+    
     def get_comprehensive_health(self) -> Dict[str, Any]:
         """
         Get comprehensive health check results.
@@ -239,11 +510,15 @@ class HealthChecker:
                 "model": self.check_model_availability(),
                 "data_directories": self.check_data_directories(),
                 "configuration": self.check_configuration(),
-                "dependencies": self.check_dependencies()
+                "dependencies": self.check_dependencies(),
+                "database": self.check_database_connectivity(),
+                "mlflow_service": self.check_mlflow_service(),
+                "resource_usage": self.check_resource_usage(),
+                "dependency_versions": self.check_dependency_versions()
             },
             "summary": {
                 "healthy_checks": 0,
-                "total_checks": 5,
+                "total_checks": 9,
                 "errors": []
             }
         }
@@ -279,16 +554,40 @@ class HealthChecker:
         else:
             errors.extend(checks["dependencies"]["errors"])
         
-        # Set overall status
-        if health_results["summary"]["healthy_checks"] < 3:  # At least 3/5 checks must pass
+        # Database connectivity check
+        if checks["database"]["database_connected"]:
+            health_results["summary"]["healthy_checks"] += 1
+        else:
+            errors.extend(checks["database"]["errors"])
+        
+        # MLflow service check
+        if checks["mlflow_service"]["mlflow_available"] and not checks["mlflow_service"]["errors"]:
+            health_results["summary"]["healthy_checks"] += 1
+        else:
+            errors.extend(checks["mlflow_service"]["errors"])
+        
+        # Resource usage check
+        if checks["resource_usage"]["resources_healthy"]:
+            health_results["summary"]["healthy_checks"] += 1
+        else:
+            errors.extend(checks["resource_usage"]["warnings"])
+        
+        # Dependency versions check
+        if checks["dependency_versions"]["versions_collected"] and not checks["dependency_versions"]["errors"]:
+            health_results["summary"]["healthy_checks"] += 1
+        else:
+            errors.extend(checks["dependency_versions"]["errors"])
+        
+        # Set overall status (now with 9 total checks)
+        if health_results["summary"]["healthy_checks"] < 5:  # At least 5/9 checks must pass
             health_results["overall_status"] = "unhealthy"
-        elif health_results["summary"]["healthy_checks"] < 5:
+        elif health_results["summary"]["healthy_checks"] < 7:
             health_results["overall_status"] = "degraded"
         
         health_results["summary"]["errors"] = errors
         
         logger.info(f"Health check completed: {health_results['overall_status']} "
-                   f"({health_results['summary']['healthy_checks']}/5 checks passed)")
+                   f"({health_results['summary']['healthy_checks']}/9 checks passed)")
         
         # Record health check metrics
         try:

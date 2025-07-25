@@ -143,5 +143,46 @@ python -m src.cli predict data/processed/processed_features.csv --output_csv pre
 ```
 
 Use `--help` after any command to view available options.
+
+## API Authentication
+
+The REST API includes secure authentication for protected endpoints. Authentication is implemented using API key-based authentication with the following security features:
+
+### Security Features
+- **Environment-based configuration**: API key stored securely in environment variables
+- **Constant-time comparison**: Prevents timing attacks using `secrets.compare_digest()`
+- **Token validation**: Minimum length requirements and format validation
+- **Comprehensive error handling**: Proper HTTP status codes and security headers
+- **Audit logging**: All authentication attempts are logged for security monitoring
+
+### Configuration
+Set the API key using the `API_KEY` environment variable:
+
+```bash
+export API_KEY="your-secure-api-key-here"
+```
+
+**Security Requirements:**
+- API key must be at least 16 characters long
+- Use a cryptographically secure random string for production
+- Keep the API key secret and rotate regularly
+
+### Using the API
+Include the API key in the `Authorization` header:
+
+```bash
+# Example API request
+curl -X POST "http://localhost:8000/predict" \
+  -H "Authorization: Bearer your-secure-api-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{"customer_data": {...}}'
+```
+
+### Error Responses
+- **401 Unauthorized**: Invalid or missing credentials
+- **500 Internal Server Error**: Authentication system misconfiguration
+
+All authentication errors include appropriate `WWW-Authenticate` headers and detailed error messages for debugging.
+
 ## How to Contribute (and test Jules)
 Jules, our Async Development Agent, will assist in building out features, tests, and MLOps components. Please create clear issues.

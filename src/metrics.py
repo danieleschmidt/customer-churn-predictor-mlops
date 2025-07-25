@@ -206,6 +206,67 @@ class MetricsCollector:
             "Total number of errors encountered"
         )
         
+        # API endpoint metrics (new enhancements)
+        self._api_request_duration = Histogram(
+            "api_request_duration_seconds",
+            "Time taken to process API requests",
+            buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+        )
+        
+        self._api_request_count = Counter(
+            "api_request_count_total",
+            "Total number of API requests"
+        )
+        
+        self._api_response_size = Histogram(
+            "api_response_size_bytes",
+            "Size of API responses in bytes",
+            buckets=[100, 1000, 10000, 100000, 1000000, 10000000]
+        )
+        
+        # System resource metrics (new enhancements)
+        self._memory_usage_bytes = Gauge(
+            "memory_usage_bytes",
+            "Current memory usage in bytes"
+        )
+        
+        self._cpu_usage_percent = Gauge(
+            "cpu_usage_percent",
+            "Current CPU usage percentage"
+        )
+        
+        self._disk_usage_bytes = Gauge(
+            "disk_usage_bytes",
+            "Current disk usage in bytes"
+        )
+        
+        self._disk_free_bytes = Gauge(
+            "disk_free_bytes",
+            "Available disk space in bytes"
+        )
+        
+        # Business metrics (new enhancements)
+        self._churn_prediction_distribution = Counter(
+            "churn_prediction_distribution_total",
+            "Distribution of churn predictions (churner vs non-churner)"
+        )
+        
+        self._prediction_confidence = Histogram(
+            "prediction_confidence_score",
+            "Distribution of prediction confidence scores",
+            buckets=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        )
+        
+        self._model_feature_importance = Gauge(
+            "model_feature_importance",
+            "Importance scores of model features"
+        )
+        
+        self._data_quality_score = Gauge(
+            "data_quality_score",
+            "Data quality score for incoming prediction requests"
+        )
+        
         # Application info
         self._app_info = Gauge(
             "app_info",
@@ -215,7 +276,7 @@ class MetricsCollector:
         # Initialize app info
         self._app_info.set(1, 'version="1.0.0",service="churn-predictor"')
         
-        logger.info("MetricsCollector initialized with all metrics")
+        logger.info("MetricsCollector initialized with enhanced metrics")
     
     def record_prediction_latency(self, duration: float, prediction_type: str):
         """
@@ -328,6 +389,82 @@ class MetricsCollector:
         else:
             self._active_requests.dec(1)
     
+    def record_api_request(self, duration: float, endpoint: str, method: str, status_code: int, response_size: int):
+        """
+        Record API request metrics.
+        
+        Args:
+            duration: Request duration in seconds
+            endpoint: API endpoint path
+            method: HTTP method (GET, POST, etc.)
+            status_code: HTTP status code
+            response_size: Response size in bytes
+        """
+        # Request duration
+        duration_labels = f'endpoint="{endpoint}",method="{method}",status="{status_code}"'
+        self._api_request_duration.observe(duration, duration_labels)
+        
+        # Request count
+        count_labels = f'endpoint="{endpoint}",method="{method}",status="{status_code}"'
+        self._api_request_count.inc(1, count_labels)
+        
+        # Response size
+        size_labels = f'endpoint="{endpoint}",method="{method}"'
+        self._api_response_size.observe(response_size, size_labels)
+        
+        logger.debug(f"Recorded API request: {method} {endpoint} {status_code} {duration:.3f}s {response_size}b")
+    
+    def record_system_resources(self, memory_bytes: int, cpu_percent: float, disk_used_bytes: int, disk_free_bytes: int):
+        """
+        Record system resource usage metrics.
+        
+        Args:
+            memory_bytes: Memory usage in bytes
+            cpu_percent: CPU usage percentage
+            disk_used_bytes: Disk usage in bytes
+            disk_free_bytes: Available disk space in bytes
+        """
+        self._memory_usage_bytes.set(memory_bytes)
+        self._cpu_usage_percent.set(cpu_percent)
+        self._disk_usage_bytes.set(disk_used_bytes)
+        self._disk_free_bytes.set(disk_free_bytes)
+        
+        logger.debug(f"Recorded system resources: {memory_bytes/1024/1024:.1f}MB RAM, {cpu_percent:.1f}% CPU")
+    
+    def record_churn_prediction(self, prediction: bool, confidence: float, data_quality: float):
+        """
+        Record business metrics for churn predictions.
+        
+        Args:
+            prediction: True if predicted to churn, False otherwise
+            confidence: Prediction confidence score (0-1)
+            data_quality: Data quality score (0-1)
+        """
+        # Prediction distribution
+        prediction_label = "churner" if prediction else "non_churner"
+        distribution_labels = f'prediction="{prediction_label}"'
+        self._churn_prediction_distribution.inc(1, distribution_labels)
+        
+        # Confidence score distribution
+        self._prediction_confidence.observe(confidence)
+        
+        # Data quality
+        self._data_quality_score.set(data_quality)
+        
+        logger.debug(f"Recorded churn prediction: {prediction_label} confidence={confidence:.3f} quality={data_quality:.3f}")
+    
+    def record_model_feature_importance(self, feature_name: str, importance: float):
+        """
+        Record model feature importance scores.
+        
+        Args:
+            feature_name: Name of the feature
+            importance: Importance score
+        """
+        labels = f'feature="{feature_name}"'
+        self._model_feature_importance.set(importance, labels)
+        logger.debug(f"Recorded feature importance: {feature_name}={importance:.3f}")
+    
     def get_metrics(self) -> List[str]:
         """
         Get all metrics as list of strings.
@@ -339,6 +476,7 @@ class MetricsCollector:
         
         # Get all metric instances
         metric_instances = [
+            # Original metrics
             self._prediction_latency,
             self._prediction_count,
             self._model_accuracy,
@@ -350,7 +488,21 @@ class MetricsCollector:
             self._health_check_status,
             self._active_requests,
             self._error_count,
-            self._app_info
+            self._app_info,
+            # Enhanced API metrics
+            self._api_request_duration,
+            self._api_request_count,
+            self._api_response_size,
+            # Enhanced system metrics
+            self._memory_usage_bytes,
+            self._cpu_usage_percent,
+            self._disk_usage_bytes,
+            self._disk_free_bytes,
+            # Enhanced business metrics
+            self._churn_prediction_distribution,
+            self._prediction_confidence,
+            self._model_feature_importance,
+            self._data_quality_score
         ]
         
         for metric in metric_instances:

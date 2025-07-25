@@ -30,6 +30,14 @@ scrape_configs:
     metrics_path: '/metrics'
     scrape_interval: 30s
     scrape_timeout: 10s
+    # Enhanced metrics collection
+    params:
+      format: ['prometheus']
+    metric_relabel_configs:
+      # Add instance labels for better identification
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'churn-predictor'
     
   # MLflow tracking server
   - job_name: 'mlflow'
