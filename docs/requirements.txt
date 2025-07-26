@@ -1,0 +1,21 @@
+# Documentation build requirements
+# Install with: pip install -r docs/requirements.txt
+
+# Core documentation tools
+mkdocs>=1.5.0
+mkdocs-material>=9.0.0
+mkdocs-git-revision-date-localized-plugin>=1.2.0
+mkdocs-minify-plugin>=0.7.0
+mkdocs-awesome-pages-plugin>=2.9.0
+
+# Code documentation
+mkdocstrings[python]>=0.24.0
+mkdocstrings-python>=1.7.0
+
+# Markdown extensions
+pymdown-extensions>=10.0.0
+
+# Additional utilities
+jinja2>=3.1.0
+markdown>=3.4.0
+pygments>=2.16.0
