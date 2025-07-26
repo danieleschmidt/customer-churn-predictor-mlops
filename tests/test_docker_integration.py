@@ -221,8 +221,9 @@ class TestEnvironmentVariableHandling:
         # Ensure no hardcoded secrets in Dockerfile
         sensitive_patterns = ["password", "secret", "key", "token"]
         for pattern in sensitive_patterns:
-            assert pattern.lower() not in dockerfile_content.lower() or \
-                   "API_KEY" in dockerfile_content,  # API_KEY is acceptable as it's externally provided
+            # API_KEY is acceptable as it's externally provided
+            assert (pattern.lower() not in dockerfile_content.lower() or 
+                   "API_KEY" in dockerfile_content), \
                    f"Potential hardcoded secret containing '{pattern}' in Dockerfile"
         
         # MLflow URI should be configurable (not hardcoded)

@@ -18,8 +18,8 @@ from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
 
 from src.rate_limiter import (
-    RateLimiter, RateLimitRule, RateLimitStatus, 
-    RateLimitBackend, InMemoryRateLimitStorage
+    RateLimitManager, RateLimitRule, RateLimitStatus, 
+    RateLimitBackend, MemoryRateLimiter
 )
 
 
@@ -255,7 +255,7 @@ class TestRateLimitingMemoryManagement:
     @pytest.fixture
     def memory_storage(self):
         """Fixture providing in-memory storage for testing."""
-        return InMemoryRateLimitStorage()
+        return MemoryRateLimiter()
     
     def test_memory_cleanup_expired_entries(self, memory_storage):
         """Test that expired entries are cleaned up from memory."""
