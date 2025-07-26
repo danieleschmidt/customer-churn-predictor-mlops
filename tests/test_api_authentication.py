@@ -41,7 +41,7 @@ class TestAPIAuthentication:
         """Fixture providing invalid HTTP authorization credentials."""
         return HTTPAuthorizationCredentials(
             scheme="Bearer", 
-            credentials="invalid-token"
+            credentials="invalid-token-that-is-long-enough"
         )
     
     @pytest.fixture
@@ -248,6 +248,11 @@ class TestAPIAuthentication:
 
 class TestAuthenticationIntegration:
     """Integration tests for authentication system."""
+    
+    @pytest.fixture
+    def valid_api_key(self):
+        """Fixture providing a valid API key for testing."""
+        return "valid-api-key-12345678901234567890"
     
     @pytest.mark.asyncio
     async def test_authentication_with_real_environment(self):

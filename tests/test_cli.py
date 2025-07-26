@@ -247,7 +247,7 @@ class TestPredictCommand:
         ])
         
         assert result.exit_code == 1
-        assert "Validation error: Invalid path" in result.stdout
+        assert "Validation error: Invalid path" in result.output
         # Should not call run_predictions if validation fails
         mock_run_predictions.assert_not_called()
     
@@ -269,7 +269,7 @@ class TestPredictCommand:
         ])
         
         assert result.exit_code == 1
-        assert "Validation error: Cannot create output file" in result.stdout
+        assert "Validation error: Cannot create output file" in result.output
         mock_run_predictions.assert_not_called()
 
 
