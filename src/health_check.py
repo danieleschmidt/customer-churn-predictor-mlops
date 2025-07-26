@@ -10,6 +10,8 @@ import json
 import time
 import logging
 import os
+import sys
+import platform
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 from datetime import datetime
@@ -18,6 +20,19 @@ from .logging_config import get_logger
 from .validation import safe_read_json
 from .path_config import PathConfig
 from .metrics import get_metrics_collector
+
+# Optional dependencies for enhanced monitoring
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
+
+try:
+    import mlflow
+    HAS_MLFLOW = True
+except ImportError:
+    HAS_MLFLOW = False
 
 logger = get_logger(__name__)
 
@@ -222,6 +237,178 @@ class HealthChecker:
         
         return dependencies_status
     
+    def check_resource_usage(self) -> Dict[str, Any]:
+        """
+        Check system resource usage.
+        
+        Returns:
+            Dict containing resource usage information
+        """
+        resource_status = {
+            "resources_healthy": True,
+            "cpu_percent": None,
+            "memory_percent": None,
+            "disk_usage": {},
+            "load_average": None,
+            "errors": []
+        }
+        
+        if not HAS_PSUTIL:
+            resource_status["resources_healthy"] = False
+            resource_status["errors"].append("psutil not available for resource monitoring")
+            return resource_status
+        
+        try:
+            # CPU usage (averaged over 1 second)
+            cpu_percent = psutil.cpu_percent(interval=1)
+            resource_status["cpu_percent"] = round(cpu_percent, 2)
+            
+            # Memory usage
+            memory = psutil.virtual_memory()
+            resource_status["memory_percent"] = round(memory.percent, 2)
+            
+            # Disk usage for current directory
+            disk = psutil.disk_usage('.')
+            resource_status["disk_usage"] = {
+                "total_gb": round(disk.total / (1024**3), 2),
+                "used_gb": round(disk.used / (1024**3), 2),
+                "free_gb": round(disk.free / (1024**3), 2),
+                "percent": round((disk.used / disk.total) * 100, 2)
+            }
+            
+            # Load average (Unix systems only)
+            if hasattr(os, 'getloadavg'):
+                load_avg = os.getloadavg()
+                resource_status["load_average"] = {
+                    "1min": round(load_avg[0], 2),
+                    "5min": round(load_avg[1], 2),
+                    "15min": round(load_avg[2], 2)
+                }
+            
+            # Check for resource thresholds
+            if cpu_percent > 90:
+                resource_status["resources_healthy"] = False
+                resource_status["errors"].append(f"High CPU usage: {cpu_percent}%")
+            
+            if memory.percent > 90:
+                resource_status["resources_healthy"] = False
+                resource_status["errors"].append(f"High memory usage: {memory.percent}%")
+            
+            if resource_status["disk_usage"]["percent"] > 90:
+                resource_status["resources_healthy"] = False
+                resource_status["errors"].append(f"High disk usage: {resource_status['disk_usage']['percent']}%")
+        
+        except Exception as e:
+            logger.error(f"Error checking resource usage: {e}")
+            resource_status["resources_healthy"] = False
+            resource_status["errors"].append(f"Resource check error: {str(e)}")
+        
+        return resource_status
+    
+    def check_mlflow_service(self) -> Dict[str, Any]:
+        """
+        Check MLflow service connectivity.
+        
+        Returns:
+            Dict containing MLflow service status
+        """
+        mlflow_status = {
+            "service_available": False,
+            "tracking_uri": None,
+            "version": None,
+            "experiments_accessible": False,
+            "errors": []
+        }
+        
+        if not HAS_MLFLOW:
+            mlflow_status["errors"].append("MLflow not available")
+            return mlflow_status
+        
+        try:
+            # Get tracking URI
+            tracking_uri = mlflow.get_tracking_uri()
+            mlflow_status["tracking_uri"] = tracking_uri
+            
+            # Get MLflow version
+            mlflow_status["version"] = mlflow.__version__
+            
+            # Try to access experiments (lightweight check)
+            try:
+                client = mlflow.tracking.MlflowClient()
+                experiments = client.search_experiments(max_results=1)
+                mlflow_status["experiments_accessible"] = True
+                mlflow_status["service_available"] = True
+            except Exception as e:
+                mlflow_status["errors"].append(f"Cannot access experiments: {str(e)}")
+        
+        except Exception as e:
+            logger.error(f"Error checking MLflow service: {e}")
+            mlflow_status["errors"].append(f"MLflow check error: {str(e)}")
+        
+        return mlflow_status
+    
+    def check_database_connectivity(self) -> Dict[str, Any]:
+        """
+        Check database connectivity (placeholder for future database integration).
+        
+        Returns:
+            Dict containing database connectivity status
+        """
+        db_status = {
+            "configured": False,
+            "connected": False,
+            "connection_pool_healthy": False,
+            "database_name": None,
+            "errors": []
+        }
+        
+        # Check for common database environment variables
+        db_vars = ['DATABASE_URL', 'DB_HOST', 'POSTGRES_URL', 'MYSQL_URL', 'MONGODB_URI']
+        db_configured = any(os.getenv(var) for var in db_vars)
+        
+        if not db_configured:
+            db_status["errors"].append("No database configuration found (optional)")
+            return db_status
+        
+        db_status["configured"] = True
+        
+        # Placeholder for actual database connectivity checks
+        # This would be implemented when database integration is added
+        db_status["errors"].append("Database connectivity check not implemented yet")
+        
+        return db_status
+    
+    def get_dependency_versions(self) -> Dict[str, str]:
+        """
+        Get versions of key dependencies.
+        
+        Returns:
+            Dict mapping package names to versions
+        """
+        versions = {
+            "python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+            "platform": platform.platform(),
+            "architecture": platform.architecture()[0]
+        }
+        
+        # Check versions of key packages
+        packages_to_check = [
+            "pandas", "numpy", "scikit-learn", "joblib", 
+            "typer", "fastapi", "uvicorn", "mlflow", "psutil"
+        ]
+        
+        for package in packages_to_check:
+            try:
+                module = __import__(package)
+                if hasattr(module, "__version__"):
+                    versions[package] = module.__version__
+                else:
+                    versions[package] = "version_unknown"
+            except ImportError:
+                versions[package] = "not_installed"
+        
+        return versions
+    
     def get_comprehensive_health(self) -> Dict[str, Any]:
         """
         Get comprehensive health check results.
@@ -232,19 +419,38 @@ class HealthChecker:
         logger.info("Performing comprehensive health check")
         start_time = time.time()
         
+        # Perform all health checks
+        basic_check = self.check_basic_health()
+        model_check = self.check_model_availability()
+        data_check = self.check_data_directories()
+        config_check = self.check_configuration()
+        deps_check = self.check_dependencies()
+        resource_check = self.check_resource_usage()
+        mlflow_check = self.check_mlflow_service()
+        db_check = self.check_database_connectivity()
+        
+        # Add dependency versions to dependencies check
+        deps_check["versions"] = self.get_dependency_versions()
+        
         health_results = {
             "overall_status": "healthy",
             "checks": {
-                "basic": self.check_basic_health(),
-                "model": self.check_model_availability(),
-                "data_directories": self.check_data_directories(),
-                "configuration": self.check_configuration(),
-                "dependencies": self.check_dependencies()
+                "basic": basic_check,
+                "model": model_check,
+                "data_directories": data_check,
+                "configuration": config_check,
+                "dependencies": deps_check,
+                "resources": resource_check,
+                "mlflow_service": mlflow_check,
+                "database": db_check
             },
             "summary": {
                 "healthy_checks": 0,
-                "total_checks": 5,
+                "total_checks": 8,
                 "errors": []
+            },
+            "performance": {
+                "check_duration_ms": 0  # Will be set at the end
             }
         }
         
@@ -252,48 +458,74 @@ class HealthChecker:
         checks = health_results["checks"]
         errors = []
         
-        # Basic check is always healthy if we get here
-        health_results["summary"]["healthy_checks"] += 1
+        # Core checks (essential for operation)
+        core_checks = ["basic", "model", "data_directories", "dependencies"]
+        # Enhanced checks (important but not critical)
+        enhanced_checks = ["configuration", "resources", "mlflow_service", "database"]
         
-        # Model check
-        if checks["model"]["model_available"]:
-            health_results["summary"]["healthy_checks"] += 1
-        else:
-            errors.append(f"Model check failed: {checks['model'].get('error', 'Unknown error')}")
+        core_healthy = 0
+        enhanced_healthy = 0
         
-        # Data directories check
-        if checks["data_directories"]["data_dirs_accessible"]:
-            health_results["summary"]["healthy_checks"] += 1
-        else:
-            errors.extend(checks["data_directories"]["errors"])
+        for check_name in core_checks:
+            check_result = checks[check_name]
+            if check_name == "basic":
+                # Basic check is always healthy if we get here
+                core_healthy += 1
+            elif check_name == "model" and check_result.get("model_available", False):
+                core_healthy += 1
+            elif check_name == "data_directories" and check_result.get("data_dirs_accessible", False):
+                core_healthy += 1
+            elif check_name == "dependencies" and check_result.get("dependencies_available", False):
+                core_healthy += 1
+            else:
+                if "errors" in check_result and check_result["errors"]:
+                    errors.extend(check_result["errors"])
+                elif "error" in check_result and check_result["error"]:
+                    errors.append(f"{check_name}: {check_result['error']}")
         
-        # Configuration check
-        if checks["configuration"]["config_valid"]:
-            health_results["summary"]["healthy_checks"] += 1
-        else:
-            errors.extend(checks["configuration"]["errors"])
+        for check_name in enhanced_checks:
+            check_result = checks[check_name]
+            if check_name == "configuration" and check_result.get("config_valid", True):
+                enhanced_healthy += 1
+            elif check_name == "resources" and check_result.get("resources_healthy", True):
+                enhanced_healthy += 1
+            elif check_name == "mlflow_service" and check_result.get("service_available", False):
+                enhanced_healthy += 1
+            elif check_name == "database" and check_result.get("configured", False):
+                enhanced_healthy += 1
+            else:
+                # Enhanced check failures are warnings, not errors
+                if "errors" in check_result and check_result["errors"]:
+                    # Only add non-optional errors
+                    for error in check_result["errors"]:
+                        if "optional" not in error.lower():
+                            errors.append(f"{check_name}: {error}")
         
-        # Dependencies check
-        if checks["dependencies"]["dependencies_available"]:
-            health_results["summary"]["healthy_checks"] += 1
-        else:
-            errors.extend(checks["dependencies"]["errors"])
+        total_healthy = core_healthy + enhanced_healthy
+        health_results["summary"]["healthy_checks"] = total_healthy
         
-        # Set overall status
-        if health_results["summary"]["healthy_checks"] < 3:  # At least 3/5 checks must pass
+        # Set overall status based on core checks primarily
+        if core_healthy < 3:  # At least 3/4 core checks must pass
             health_results["overall_status"] = "unhealthy"
-        elif health_results["summary"]["healthy_checks"] < 5:
+        elif core_healthy < 4 or total_healthy < 6:
             health_results["overall_status"] = "degraded"
+        else:
+            health_results["overall_status"] = "healthy"
         
         health_results["summary"]["errors"] = errors
         
+        # Calculate performance metrics
+        end_time = time.time()
+        duration_ms = round((end_time - start_time) * 1000, 2)
+        health_results["performance"]["check_duration_ms"] = duration_ms
+        
         logger.info(f"Health check completed: {health_results['overall_status']} "
-                   f"({health_results['summary']['healthy_checks']}/5 checks passed)")
+                   f"({total_healthy}/8 checks passed, {duration_ms}ms)")
         
         # Record health check metrics
         try:
             metrics_collector = get_metrics_collector()
-            duration = time.time() - start_time
+            duration = end_time - start_time
             metrics_collector.record_health_check_duration(duration, "detailed", health_results['overall_status'])
         except Exception as e:
             logger.warning(f"Failed to record health check metrics: {e}")

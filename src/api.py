@@ -270,12 +270,74 @@ def get_client_ip(request: Request) -> str:
 
 
 async def verify_auth(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Optional[str]:
-    """Verify authentication for protected endpoints."""
-    # For now, just log the attempt - implement actual auth as needed
-    if credentials:
-        logger.info(f"Auth attempt with token: {credentials.credentials[:10]}...")
-        # TODO: Implement actual token verification
-        return "authenticated_user"
+    """
+    Verify authentication for protected endpoints.
+    
+    Supports two authentication methods:
+    1. Static API key from API_KEY environment variable
+    2. HMAC-signed timestamps from API_SECRET environment variable
+    
+    Args:
+        credentials: HTTP Bearer token credentials
+        
+    Returns:
+        User identifier string if authenticated, None otherwise
+        
+    Security:
+        - API keys should be stored securely in environment variables
+        - HMAC tokens expire after 15 minutes for enhanced security
+        - All authentication attempts are logged for audit purposes
+    """
+    if not credentials:
+        return None
+    
+    token = credentials.credentials
+    
+    # Get authentication configuration from environment
+    api_key = os.getenv('API_KEY')
+    api_secret = os.getenv('API_SECRET')
+    
+    # Method 1: Static API Key authentication
+    if api_key and token == api_key:
+        logger.info(f"Successful API key authentication: {token[:10]}...")
+        return "api_key_user"
+    
+    # Method 2: HMAC-signed timestamp authentication
+    if api_secret and '.' in token:
+        try:
+            timestamp_str, signature = token.split('.', 1)
+            timestamp = int(timestamp_str)
+            
+            # Check if token is not expired (15 minutes = 900 seconds)
+            current_time = int(datetime.now().timestamp())
+            if current_time - timestamp > 900:
+                logger.warning(f"Expired HMAC token: {token[:10]}...")
+                return None
+            
+            # Verify HMAC signature
+            import hmac
+            import hashlib
+            
+            message = f"api_access:{timestamp_str}"
+            expected_signature = hmac.new(
+                api_secret.encode(),
+                message.encode(),
+                hashlib.sha256
+            ).hexdigest()
+            
+            if hmac.compare_digest(signature, expected_signature):
+                logger.info(f"Successful HMAC authentication: {token[:10]}...")
+                return "hmac_user"
+            else:
+                logger.warning(f"Invalid HMAC signature: {token[:10]}...")
+                return None
+                
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Malformed HMAC token: {token[:10]}... - {e}")
+            return None
+    
+    # Authentication failed
+    logger.warning(f"Authentication failed for token: {token[:10]}...")
     return None
 
 

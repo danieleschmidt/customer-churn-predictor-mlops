@@ -212,10 +212,84 @@ class MetricsCollector:
             "Application information"
         )
         
+        # API endpoint performance metrics
+        self._endpoint_duration = Histogram(
+            "endpoint_duration_seconds",
+            "Duration of API endpoint requests in seconds",
+            buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+        )
+        
+        self._endpoint_requests = Counter(
+            "endpoint_requests_total",
+            "Total number of requests to API endpoints"
+        )
+        
+        # Enhanced prediction metrics
+        self._prediction_batch_size = Histogram(
+            "prediction_batch_size",
+            "Size of prediction batches",
+            buckets=[1, 5, 10, 25, 50, 100, 250, 500, 1000]
+        )
+        
+        self._prediction_queue_time = Histogram(
+            "prediction_queue_time_seconds",
+            "Time spent waiting in prediction queue"
+        )
+        
+        # System resource metrics
+        self._system_memory = Gauge(
+            "system_memory_usage_bytes",
+            "System memory usage in bytes"
+        )
+        
+        self._system_cpu = Gauge(
+            "system_cpu_usage_percent",
+            "System CPU usage percentage"
+        )
+        
+        # Custom business metrics
+        self._churn_prediction_confidence = Histogram(
+            "churn_prediction_confidence",
+            "Confidence scores of churn predictions",
+            buckets=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        )
+        
+        self._model_drift = Gauge(
+            "model_drift_score",
+            "Model drift detection score"
+        )
+        
+        self._prediction_accuracy_real_time = Gauge(
+            "prediction_accuracy_real_time",
+            "Real-time prediction accuracy"
+        )
+        
+        # Enhanced error tracking
+        self._error_rate = Gauge(
+            "error_rate_percent",
+            "Error rate percentage"
+        )
+        
+        self._error_by_endpoint = Counter(
+            "error_by_endpoint_total",
+            "Total errors by endpoint"
+        )
+        
+        # Performance percentiles (calculated metrics)
+        self._p95_latency = Gauge(
+            "p95_latency_seconds",
+            "95th percentile latency"
+        )
+        
+        self._p99_latency = Gauge(
+            "p99_latency_seconds",
+            "99th percentile latency"
+        )
+        
         # Initialize app info
         self._app_info.set(1, 'version="1.0.0",service="churn-predictor"')
         
-        logger.info("MetricsCollector initialized with all metrics")
+        logger.info("MetricsCollector initialized with enhanced metrics")
     
     def record_prediction_latency(self, duration: float, prediction_type: str):
         """
@@ -327,6 +401,125 @@ class MetricsCollector:
             self._active_requests.inc(1)
         else:
             self._active_requests.dec(1)
+        logger.debug(f"Active requests {'incremented' if increment else 'decremented'}")
+    
+    def record_api_endpoint(self, endpoint: str, method: str, status_code: int, duration: float):
+        """
+        Record API endpoint performance metrics.
+        
+        Args:
+            endpoint: API endpoint path
+            method: HTTP method
+            status_code: HTTP status code
+            duration: Request duration in seconds
+        """
+        labels = f'endpoint="{endpoint}",method="{method}",status="{status_code}"'
+        self._endpoint_duration.observe(duration, labels)
+        self._endpoint_requests.inc(1, labels)
+        logger.debug(f"Recorded API endpoint: {method} {endpoint} {status_code} {duration:.3f}s")
+    
+    def record_prediction_batch_metrics(self, batch_size: int, queue_time: float):
+        """
+        Record prediction batch metrics.
+        
+        Args:
+            batch_size: Size of the prediction batch
+            queue_time: Time spent waiting in queue
+        """
+        self._prediction_batch_size.observe(batch_size)
+        self._prediction_queue_time.observe(queue_time)
+        logger.debug(f"Recorded batch metrics: size={batch_size}, queue_time={queue_time:.3f}s")
+    
+    def record_system_resources(self, memory_bytes: int, cpu_percent: float):
+        """
+        Record system resource usage.
+        
+        Args:
+            memory_bytes: Memory usage in bytes
+            cpu_percent: CPU usage percentage
+        """
+        self._system_memory.set(memory_bytes)
+        self._system_cpu.set(cpu_percent)
+        logger.debug(f"Recorded system resources: memory={memory_bytes}, cpu={cpu_percent}%")
+    
+    def record_business_metrics(self, confidence: float, drift_score: float, real_time_accuracy: float):
+        """
+        Record custom business metrics.
+        
+        Args:
+            confidence: Prediction confidence score
+            drift_score: Model drift score
+            real_time_accuracy: Real-time accuracy score
+        """
+        self._churn_prediction_confidence.observe(confidence)
+        self._model_drift.set(drift_score)
+        self._prediction_accuracy_real_time.set(real_time_accuracy)
+        logger.debug(f"Recorded business metrics: confidence={confidence}, drift={drift_score}, accuracy={real_time_accuracy}")
+    
+    def record_endpoint_error(self, endpoint: str, error_type: str):
+        """
+        Record endpoint-specific error.
+        
+        Args:
+            endpoint: API endpoint where error occurred
+            error_type: Type of error
+        """
+        labels = f'endpoint="{endpoint}",error_type="{error_type}"'
+        self._error_by_endpoint.inc(1, labels)
+        logger.debug(f"Recorded endpoint error: {endpoint} - {error_type}")
+    
+    def calculate_percentiles(self):
+        """Calculate and update performance percentiles."""
+        try:
+            # Get prediction latency observations
+            with self._prediction_latency._lock:
+                observations = []
+                for label_observations in self._prediction_latency._observations.values():
+                    observations.extend(label_observations)
+            
+            if observations:
+                observations.sort()
+                n = len(observations)
+                
+                # Calculate 95th percentile
+                p95_index = int(0.95 * n)
+                if p95_index < n:
+                    p95_value = observations[p95_index]
+                    self._p95_latency.set(p95_value)
+                
+                # Calculate 99th percentile
+                p99_index = int(0.99 * n)
+                if p99_index < n:
+                    p99_value = observations[p99_index]
+                    self._p99_latency.set(p99_value)
+                
+                logger.debug(f"Updated percentiles: P95={p95_value:.3f}s, P99={p99_value:.3f}s")
+        
+        except Exception as e:
+            logger.error(f"Error calculating percentiles: {e}")
+    
+    def update_error_rate(self):
+        """Update error rate percentage."""
+        try:
+            total_requests = 0
+            total_errors = 0
+            
+            # Calculate from endpoint requests and errors
+            with self._endpoint_requests._lock:
+                for count in self._endpoint_requests.samples.values():
+                    total_requests += count
+            
+            with self._error_by_endpoint._lock:
+                for count in self._error_by_endpoint.samples.values():
+                    total_errors += count
+            
+            if total_requests > 0:
+                error_rate = (total_errors / total_requests) * 100
+                self._error_rate.set(error_rate)
+                logger.debug(f"Updated error rate: {error_rate:.2f}%")
+        
+        except Exception as e:
+            logger.error(f"Error calculating error rate: {e}")
     
     def get_metrics(self) -> List[str]:
         """
@@ -336,6 +529,10 @@ class MetricsCollector:
             List of metric lines
         """
         metrics = []
+        
+        # Update calculated metrics before returning
+        self.calculate_percentiles()
+        self.update_error_rate()
         
         # Get all metric instances
         metric_instances = [
@@ -350,7 +547,21 @@ class MetricsCollector:
             self._health_check_status,
             self._active_requests,
             self._error_count,
-            self._app_info
+            self._app_info,
+            # Enhanced metrics
+            self._endpoint_duration,
+            self._endpoint_requests,
+            self._prediction_batch_size,
+            self._prediction_queue_time,
+            self._system_memory,
+            self._system_cpu,
+            self._churn_prediction_confidence,
+            self._model_drift,
+            self._prediction_accuracy_real_time,
+            self._error_rate,
+            self._error_by_endpoint,
+            self._p95_latency,
+            self._p99_latency
         ]
         
         for metric in metric_instances:
