@@ -1,283 +1,81 @@
----
-# TERRAGON AUTONOMOUS BACKLOG - CUSTOMER CHURN PREDICTOR
-# Maintained by: Terry (Autonomous Senior Coding Assistant)
-# Last Updated: 2025-07-24
-# Methodology: WSJF (Weighted Shortest Job First)
-# Formula: WSJF = (Business_Value + Time_Criticality + Risk_Reduction) / Job_Size
-# Scale: 1-10 for all factors
-
 metadata:
-  project: "customer-churn-predictor-mlops"
-  repo_root: "/root/repo"
-  scope: "current_repo_only"
-  last_discovery: "2025-07-24T11:32:00Z"
+  project: customer-churn-predictor-mlops
+  repo_root: /root/repo
+  scope: current_repo_only
+  last_discovery: '2025-07-26T22:51:16.251709'
   wsjf_threshold: 1.0
   aging_multiplier_max: 2.0
-
-# CRITICAL PRIORITY - EXECUTE IMMEDIATELY (WSJF > 2.0)
 critical_items:
-  - id: "CRIT-001"
-    title: "Implement Proper API Authentication"
-    type: "security_enhancement"
-    status: "COMPLETED"
-    risk_tier: "HIGH"
-    created_at: "2025-07-24"
-    description: "Replace placeholder TODO comment with actual token verification in API authentication system"
-    files: ["src/api.py:277"]
-    business_value: 9  # Security is critical for production API
-    time_criticality: 8  # High priority for production readiness
-    risk_reduction: 9  # Prevents unauthorized access
-    job_size: 3  # Moderate implementation effort
-    wsjf_score: 8.67  # (9+8+9)/3
-    acceptance_criteria:
-      - "Remove TODO comment and implement JWT/API key verification"
-      - "Add proper error handling for invalid tokens"
-      - "Add unit tests for authentication scenarios"
-      - "Update API documentation with auth requirements"
-    links:
-      - "src/api.py:277"
-    aging_days: 0
-
-  - id: "CRIT-002"
-    title: "Add Missing Development Dependencies to CI"
-    type: "devops_improvement"
-    status: "BLOCKED"
-    risk_tier: "MEDIUM"
-    created_at: "2025-07-24"
-    description: "CI pipeline lacks pytest and development tools. Tests may be failing silently"
-    files: [".github/workflows/main.yml", "requirements-dev.txt"]
-    business_value: 7  # Critical for reliable CI
-    time_criticality: 8  # Blocking proper testing
-    risk_reduction: 8  # Prevents broken deployments
-    job_size: 2  # Simple dependency addition
-    wsjf_score: 11.5  # (7+8+8)/2
-    acceptance_criteria:
-      - "Install requirements-dev.txt in CI workflow"
-      - "Run pytest instead of unittest discover"
-      - "Add linting steps (black, flake8, mypy)"
-      - "Verify all tests pass in CI"
-    links:
-      - ".github/workflows/main.yml"
-      - "requirements-dev.txt"
-    aging_days: 0
-
-  - id: "CRIT-003"
-    title: "Fix Python Version Mismatch in CI"
-    type: "devops_bug"
-    status: "BLOCKED"
-    risk_tier: "MEDIUM"
-    created_at: "2025-07-24"
-    description: "CI uses Python 3.8 but pyproject.toml specifies 3.12, causing potential compatibility issues"
-    files: [".github/workflows/main.yml", "pyproject.toml"]
-    business_value: 6  # Consistency important
-    time_criticality: 7  # Could cause deployment issues
-    risk_reduction: 8  # Prevents version conflicts
-    job_size: 1  # Simple version update
-    wsjf_score: 21.0  # (6+7+8)/1
-    acceptance_criteria:
-      - "Update CI workflow to use Python 3.12"
-      - "Verify all scripts work with Python 3.12"
-      - "Test dependency compatibility"
-    links:
-      - ".github/workflows/main.yml:21,43"
-      - "pyproject.toml:9"
-    aging_days: 0
-
-# HIGH PRIORITY (WSJF 1.5-2.0)
-high_priority:
-  - id: "HIGH-001"
-    title: "Add API Security Headers and Rate Limiting Tests"
-    type: "security_enhancement"
-    status: "COMPLETED"
-    risk_tier: "MEDIUM"
-    created_at: "2025-07-24"
-    description: "API has rate limiting but lacks comprehensive security header testing"
-    files: ["src/api.py", "tests/"]
-    business_value: 7  # Security best practices
-    time_criticality: 5  # Not immediately blocking
-    risk_reduction: 8  # Prevents security vulnerabilities
-    job_size: 4  # Moderate test implementation
-    wsjf_score: 5.0  # (7+5+8)/4
-    acceptance_criteria:
-      - "Add tests for CORS headers"
-      - "Test rate limiting edge cases"
-      - "Verify security headers are present"
-      - "Test authentication error responses"
-    links:
-      - "src/api.py"
-    aging_days: 0
-
-  - id: "HIGH-002"
-    title: "Implement Comprehensive API Health Monitoring"
-    type: "observability"
-    status: "COMPLETED"
-    risk_tier: "LOW"
-    created_at: "2025-07-24"
-    description: "Enhance health check endpoint with detailed service status reporting"
-    files: ["src/health_check.py", "src/api.py"]
-    business_value: 6  # Operational visibility
-    time_criticality: 4  # Nice to have
-    risk_reduction: 7  # Better incident response
-    job_size: 3  # Moderate enhancement
-    wsjf_score: 5.67  # (6+4+7)/3
-    acceptance_criteria:
-      - "Add database connectivity check"
-      - "Add MLflow service check"
-      - "Include resource usage metrics"
-      - "Add dependency version reporting"
-    links:
-      - "src/health_check.py"
-      - "src/api.py"
-    aging_days: 0
-
-# MEDIUM PRIORITY (WSJF 1.0-1.5)
-medium_priority:
-  - id: "MED-001"
-    title: "Add Docker Health Check Integration Tests"
-    type: "testing"
-    status: "NEW"
-    risk_tier: "LOW"
-    created_at: "2025-07-24"
-    description: "Docker setup exists but lacks integration testing for containerized deployment"
-    files: ["Dockerfile", "docker-compose.yml", "tests/"]
-    business_value: 5  # Deployment confidence
-    time_criticality: 3  # Not urgent
-    risk_reduction: 6  # Prevents deployment issues
-    job_size: 4  # Multiple test scenarios
-    wsjf_score: 3.5  # (5+3+6)/4
-    acceptance_criteria:
-      - "Add Docker container startup tests"
-      - "Test health check endpoint in container"
-      - "Verify environment variable handling"
-      - "Test volume mounts and permissions"
-    links:
-      - "Dockerfile"
-      - "docker-compose.yml"
-    aging_days: 0
-
-  - id: "MED-002"
-    title: "Enhance Prometheus Metrics Collection"
-    type: "observability"
-    status: "NEW"
-    risk_tier: "LOW"
-    created_at: "2025-07-24"
-    description: "Basic metrics exist but could be expanded for better operational insight"
-    files: ["src/metrics.py", "monitoring/prometheus.yml"]
-    business_value: 4  # Operational improvement
-    time_criticality: 2  # Future enhancement
-    risk_reduction: 5  # Better monitoring
-    job_size: 3  # Moderate enhancement
-    wsjf_score: 3.67  # (4+2+5)/3
-    acceptance_criteria:
-      - "Add API endpoint performance metrics"
-      - "Track model prediction latency"
-      - "Monitor memory and CPU usage"
-      - "Add custom business metrics"
-    links:
-      - "src/metrics.py"
-      - "monitoring/prometheus.yml"
-    aging_days: 0
-
-# LOW PRIORITY (WSJF < 1.0)
-low_priority:
-  - id: "LOW-001"
-    title: "Documentation Website Setup"
-    type: "documentation"
-    status: "COMPLETED"
-    risk_tier: "LOW"
-    created_at: "2025-07-24"
-    description: "Create comprehensive documentation site for the MLOps platform"
-    files: ["docs/", "README.md"]
-    business_value: 3  # User experience
-    time_criticality: 1  # Not time-sensitive
-    risk_reduction: 2  # Minimal risk impact
-    job_size: 6  # Large documentation effort
-    wsjf_score: 1.0  # (3+1+2)/6
-    acceptance_criteria:
-      - "Set up documentation framework"
-      - "Create API documentation"
-      - "Add deployment guides"
-      - "Include troubleshooting section"
-    links:
-      - "README.md"
-    aging_days: 0
-
-# BLOCKED ITEMS
-blocked_items:
-  - id: "CRIT-002"
-    title: "Add Missing Development Dependencies to CI"
-    blocked_reason: "Cannot modify GitHub workflows - requires manual intervention"
-    blocked_date: "2025-07-25"
-    wsjf_score: 11.5
-  - id: "CRIT-003"  
-    title: "Fix Python Version Mismatch in CI"
-    blocked_reason: "Cannot modify GitHub workflows - requires manual intervention"
-    blocked_date: "2025-07-25"
-    wsjf_score: 21.0
-
-# COMPLETED ITEMS (Recent - for context)
-completed_recent:
-  - id: "COMP-001"
-    title: "Replace Print Statements in Utility Scripts"
-    completed_date: "2025-07-22"
-    wsjf_score: 2.4
-  - id: "COMP-002"
-    title: "Implement Data Validation Framework"
-    completed_date: "2025-07-23"
-    wsjf_score: 1.33
-  - id: "COMP-003"
-    title: "Add Edge Case Test Coverage"
-    completed_date: "2025-07-23"
-    wsjf_score: 1.4
-  - id: "CRIT-001"
-    title: "Implement Proper API Authentication"
-    completed_date: "2025-07-25"
-    wsjf_score: 8.67
-  - id: "HIGH-001"
-    title: "Add API Security Headers and Rate Limiting Tests"
-    completed_date: "2025-07-25"
-    wsjf_score: 5.0
-  - id: "HIGH-002"
-    title: "Implement Comprehensive API Health Monitoring"
-    completed_date: "2025-07-25"
-    wsjf_score: 5.67
-  - id: "MED-001"
-    title: "Add Docker Health Check Integration Tests"
-    completed_date: "2025-07-25"
-    wsjf_score: 3.5
-  - id: "MED-002"
-    title: "Enhance Prometheus Metrics Collection"
-    completed_date: "2025-07-25"
-    wsjf_score: 3.67
-  - id: "LOW-001"
-    title: "Documentation Website Setup"
-    completed_date: "2025-07-25"
-    wsjf_score: 1.0
-
-# METRICS AND ANALYTICS
+- id: MED-002
+  title: Enhance Prometheus Metrics Collection
+  type: observability
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-24'
+  description: Basic metrics exist but could be expanded for better operational insight
+  files: &id001
+  - src/metrics.py
+  - monitoring/prometheus.yml
+  business_value: 4
+  time_criticality: 2
+  risk_reduction: 5
+  job_size: 3
+  wsjf_score: 3.91
+  acceptance_criteria:
+  - Add API endpoint performance metrics
+  - Track model prediction latency
+  - Monitor memory and CPU usage
+  - Add custom business metrics
+  links: *id001
+  aging_days: 2
+- id: MED-001
+  title: Add Docker Health Check Integration Tests
+  type: testing
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-24'
+  description: Docker setup exists but lacks integration testing for containerized
+    deployment
+  files: &id002
+  - Dockerfile
+  - docker-compose.yml
+  business_value: 5
+  time_criticality: 3
+  risk_reduction: 6
+  job_size: 4
+  wsjf_score: 3.73
+  acceptance_criteria:
+  - Add Docker container startup tests
+  - Test health check endpoint in container
+  - Verify environment variable handling
+  - Test volume mounts and permissions
+  links: *id002
+  aging_days: 2
+- id: TODO-4481
+  title: Address TODO in index.md:155
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-26'
+  description: '-   :material-bug:{ .lg .middle } __Troubleshooting__'
+  files: &id003
+  - /root/repo/docs/index.md:155
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/docs/index.md:155
+  links: *id003
+  aging_days: 0
+high_priority: []
+medium_priority: []
+low_priority: []
 metrics:
-  total_items: 8
-  critical_count: 0  # All critical items completed or blocked
-  high_priority_count: 0  # All high priority items completed
-  medium_priority_count: 0  # All medium priority items completed
-  low_priority_count: 0   # All low priority items completed
-  blocked_count: 2  # CRIT-002 and CRIT-003 blocked
-  completed_count: 9  # 3 previous + 6 new completions (including MED-001, MED-002, LOW-001)
-  completion_rate: 87.5  # 7/8 actionable items completed
-  avg_wsjf_score_completed: 5.30  # Average WSJF of completed items
-  total_wsjf_delivered: 31.84  # Sum of all completed WSJF scores
-  oldest_item_days: 1
-  
-discovery_sources:
-  - "TODO/FIXME comments in codebase"
-  - "CI/CD pipeline analysis"
-  - "Security assessment review"
-  - "Existing BACKLOG.md analysis"
-  - "Code quality assessment"
-
-next_actions:
-  - "🎉 ALL ACTIONABLE BACKLOG ITEMS COMPLETED!"
-  - "Manual intervention required for blocked CI workflow items (CRIT-002, CRIT-003)"
-  - "Production deployment validation recommended"
-  - "Consider load testing and chaos engineering for future iterations"
-  - "Platform ready for production use with current deliverables"
+  total_items: 3
+  critical_count: 3
+  high_priority_count: 0
+  medium_priority_count: 0
+  low_priority_count: 0
+  avg_wsjf_score: 3.714814814814815
