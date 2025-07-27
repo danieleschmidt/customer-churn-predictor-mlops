@@ -1,0 +1,617 @@
+{
+  "openapi": "3.0.2",
+  "info": {
+    "title": "Customer Churn Predictor API",
+    "description": "Production-ready ML API for customer churn prediction with comprehensive MLOps practices",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Customer Churn Team",
+      "email": "team@yourorg.com",
+      "url": "https://github.com/yourorg/customer-churn-predictor"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.yourorg.com/v1",
+      "description": "Production server"
+    },
+    {
+      "url": "https://staging-api.yourorg.com/v1",
+      "description": "Staging server"
+    },
+    {
+      "url": "http://localhost:8000",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Check the health status of the API service",
+        "operationId": "health_check",
+        "tags": ["Health"],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "status": "healthy",
+                  "timestamp": "2025-07-27T01:15:00Z",
+                  "version": "1.0.0",
+                  "uptime": 3600,
+                  "checks": {
+                    "model": "healthy",
+                    "database": "healthy",
+                    "dependencies": "healthy"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service is unhealthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/predict": {
+      "post": {
+        "summary": "Predict Customer Churn",
+        "description": "Predict the likelihood of customer churn based on customer features",
+        "operationId": "predict_churn",
+        "tags": ["Prediction"],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PredictionRequest"
+              },
+              "example": {
+                "features": {
+                  "SeniorCitizen": 0,
+                  "tenure": 12,
+                  "MonthlyCharges": 29.85,
+                  "TotalCharges": 358.2,
+                  "gender_Female": 1,
+                  "gender_Male": 0,
+                  "Partner_No": 0,
+                  "Partner_Yes": 1,
+                  "Dependents_No": 1,
+                  "Dependents_Yes": 0
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful prediction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictionResponse"
+                },
+                "example": {
+                  "prediction": 0,
+                  "probability": 0.23,
+                  "confidence": 0.85,
+                  "model_version": "1.0.0",
+                  "timestamp": "2025-07-27T01:15:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/predict/batch": {
+      "post": {
+        "summary": "Batch Predict Customer Churn",
+        "description": "Predict churn for multiple customers in a single request",
+        "operationId": "predict_churn_batch",
+        "tags": ["Prediction"],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchPredictionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful batch prediction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchPredictionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "summary": "Prometheus Metrics",
+        "description": "Get Prometheus-formatted metrics for monitoring",
+        "operationId": "get_metrics",
+        "tags": ["Monitoring"],
+        "responses": {
+          "200": {
+            "description": "Prometheus metrics",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "# HELP prediction_requests_total Total number of prediction requests\\n# TYPE prediction_requests_total counter\\nprediction_requests_total 100\\n"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/model/info": {
+      "get": {
+        "summary": "Model Information",
+        "description": "Get information about the currently loaded model",
+        "operationId": "get_model_info",
+        "tags": ["Model"],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelInfoResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API Key",
+        "description": "API key authentication. Include the API key in the Authorization header as 'Bearer {api_key}'"
+      }
+    },
+    "schemas": {
+      "PredictionRequest": {
+        "type": "object",
+        "required": ["features"],
+        "properties": {
+          "features": {
+            "type": "object",
+            "description": "Customer features for prediction",
+            "properties": {
+              "SeniorCitizen": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Whether customer is a senior citizen (0 or 1)"
+              },
+              "tenure": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Number of months the customer has been with the company"
+              },
+              "MonthlyCharges": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Monthly charges in dollars"
+              },
+              "TotalCharges": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Total charges in dollars"
+              },
+              "gender_Female": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Gender indicator: Female (1) or not (0)"
+              },
+              "gender_Male": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Gender indicator: Male (1) or not (0)"
+              },
+              "Partner_No": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Partner indicator: No partner (1) or has partner (0)"
+              },
+              "Partner_Yes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Partner indicator: Has partner (1) or no partner (0)"
+              },
+              "Dependents_No": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Dependents indicator: No dependents (1) or has dependents (0)"
+              },
+              "Dependents_Yes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Dependents indicator: Has dependents (1) or no dependents (0)"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "PredictionResponse": {
+        "type": "object",
+        "required": ["prediction", "probability"],
+        "properties": {
+          "prediction": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Predicted churn (0 = No Churn, 1 = Churn)"
+          },
+          "probability": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Probability of churn (0.0 to 1.0)"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Model confidence in the prediction"
+          },
+          "model_version": {
+            "type": "string",
+            "description": "Version of the model used for prediction"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of the prediction"
+          }
+        }
+      },
+      "BatchPredictionRequest": {
+        "type": "object",
+        "required": ["features"],
+        "properties": {
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "Customer features for prediction"
+            },
+            "minItems": 1,
+            "maxItems": 1000,
+            "description": "Array of customer feature objects"
+          }
+        }
+      },
+      "BatchPredictionResponse": {
+        "type": "object",
+        "required": ["predictions", "processed_count"],
+        "properties": {
+          "predictions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PredictionResponse"
+            },
+            "description": "Array of prediction results"
+          },
+          "processed_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of successfully processed predictions"
+          },
+          "error_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of failed predictions"
+          },
+          "processing_time": {
+            "type": "number",
+            "description": "Total processing time in seconds"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": ["status", "timestamp", "version"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["healthy", "unhealthy", "degraded"],
+            "description": "Overall health status"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of the health check"
+          },
+          "version": {
+            "type": "string",
+            "description": "API version"
+          },
+          "uptime": {
+            "type": "integer",
+            "description": "Service uptime in seconds"
+          },
+          "checks": {
+            "type": "object",
+            "description": "Individual component health checks",
+            "properties": {
+              "model": {
+                "type": "string",
+                "enum": ["healthy", "unhealthy", "unknown"]
+              },
+              "database": {
+                "type": "string",
+                "enum": ["healthy", "unhealthy", "unknown"]
+              },
+              "dependencies": {
+                "type": "string",
+                "enum": ["healthy", "unhealthy", "unknown"]
+              }
+            }
+          }
+        }
+      },
+      "ModelInfoResponse": {
+        "type": "object",
+        "required": ["model_name", "version", "created_at"],
+        "properties": {
+          "model_name": {
+            "type": "string",
+            "description": "Name of the model"
+          },
+          "version": {
+            "type": "string",
+            "description": "Model version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Model creation timestamp"
+          },
+          "algorithm": {
+            "type": "string",
+            "description": "Machine learning algorithm used"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of feature names"
+          },
+          "metrics": {
+            "type": "object",
+            "description": "Model performance metrics",
+            "properties": {
+              "accuracy": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "precision": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "recall": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "f1_score": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error", "message"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error type"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "details": {
+            "type": "object",
+            "description": "Additional error details"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Error timestamp"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "Unique request identifier for tracking"
+          }
+        }
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "required": ["error", "message", "validation_errors"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": ["validation_error"],
+            "description": "Error type"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "validation_errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "description": "Field name that failed validation"
+                },
+                "error": {
+                  "type": "string",
+                  "description": "Validation error message"
+                },
+                "value": {
+                  "description": "Invalid value"
+                }
+              }
+            },
+            "description": "List of validation errors"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Health check and status endpoints"
+    },
+    {
+      "name": "Prediction",
+      "description": "Customer churn prediction endpoints"
+    },
+    {
+      "name": "Model",
+      "description": "Model information and management"
+    },
+    {
+      "name": "Monitoring",
+      "description": "Monitoring and metrics endpoints"
+    }
+  ]
+}

@@ -1,0 +1,399 @@
+# =============================================================================
+# COMPREHENSIVE CI/CD WORKFLOW TEMPLATE
+# =============================================================================
+# This is a template for a comprehensive CI/CD workflow.
+# Copy this content to .github/workflows/ and customize as needed.
+# Note: This cannot be automatically applied due to security restrictions.
+
+name: 🚀 Comprehensive SDLC Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly security scan
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # =============================================================================
+  # CODE QUALITY & SECURITY
+  # =============================================================================
+  
+  code-quality:
+    name: 🔍 Code Quality & Security
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Generate cache key
+        id: cache-key
+        run: echo "key=deps-${{ hashFiles('requirements*.txt', 'pyproject.toml') }}" >> $GITHUB_OUTPUT
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ steps.cache-key.outputs.key }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements-dev.txt
+
+      - name: Run pre-commit hooks
+        uses: pre-commit/action@v3.0.0
+
+      - name: Security scan with Bandit
+        run: |
+          bandit -r src/ -f json -o bandit-report.json
+          bandit -r src/ -f txt
+
+      - name: Dependency vulnerability scan
+        run: |
+          safety check --json --output safety-report.json
+          safety check
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+
+  # =============================================================================
+  # TESTING SUITE
+  # =============================================================================
+
+  test-suite:
+    name: 🧪 Test Suite
+    runs-on: ubuntu-latest
+    needs: code-quality
+    strategy:
+      matrix:
+        test-type: [unit, integration, security, performance]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements-dev.txt
+
+      - name: Run ${{ matrix.test-type }} tests
+        run: |
+          case "${{ matrix.test-type }}" in
+            unit)
+              pytest tests/ -m "unit" --cov=src --cov-report=xml --cov-report=html
+              ;;
+            integration)
+              pytest tests/ -m "integration" --maxfail=5
+              ;;
+            security)
+              pytest tests/ -m "security" --maxfail=10
+              ;;
+            performance)
+              pytest tests/ -m "performance" --maxfail=3
+              ;;
+          esac
+
+      - name: Upload coverage to Codecov
+        if: matrix.test-type == 'unit'
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.xml
+          flags: unittests
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.test-type }}
+          path: |
+            htmlcov/
+            test-results/
+            pytest-report.xml
+
+  # =============================================================================
+  # ML PIPELINE VALIDATION
+  # =============================================================================
+
+  ml-pipeline:
+    name: 🤖 ML Pipeline Validation
+    runs-on: ubuntu-latest
+    needs: code-quality
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+
+      - name: Validate data preprocessing
+        run: |
+          python scripts/run_preprocessing.py
+          python -c "import pandas as pd; assert pd.read_csv('data/processed/processed_features.csv').shape[0] > 0"
+
+      - name: Train and validate model
+        run: |
+          python scripts/run_training.py --max_iter 100 --test_size 0.3
+          python scripts/run_evaluation.py --detailed
+
+      - name: Test model inference
+        run: |
+          python scripts/run_prediction.py data/processed/processed_features.csv --output_csv test_predictions.csv
+          python -c "import pandas as pd; assert pd.read_csv('test_predictions.csv').shape[0] > 0"
+
+      - name: Upload ML artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ml-artifacts
+          path: |
+            models/
+            mlruns/
+            test_predictions.csv
+
+  # =============================================================================
+  # DOCKER BUILD & SCAN
+  # =============================================================================
+
+  docker-build:
+    name: 🐳 Docker Build & Security Scan
+    runs-on: ubuntu-latest
+    needs: [code-quality, test-suite]
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: production
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+            VCS_REF=${{ github.sha }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tags }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # =============================================================================
+  # PERFORMANCE TESTING
+  # =============================================================================
+
+  performance-test:
+    name: ⚡ Performance Testing
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          docker-compose -f docker-compose.yml up -d
+          sleep 30  # Wait for services to start
+
+      - name: Run load tests
+        run: |
+          pip install locust
+          locust -f tests/performance/locustfile.py --headless -u 50 -r 5 -t 60s --host http://localhost:8000
+
+      - name: Collect performance metrics
+        run: |
+          curl -s http://localhost:8000/metrics > performance-metrics.txt
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: |
+            performance-metrics.txt
+            locust-results/
+
+      - name: Cleanup
+        if: always()
+        run: docker-compose down
+
+  # =============================================================================
+  # DEPLOYMENT STAGING
+  # =============================================================================
+
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [docker-build, ml-pipeline]
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: https://staging.yourapp.com
+    steps:
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment"
+          # Add your staging deployment logic here
+          # This could include:
+          # - Updating Kubernetes manifests
+          # - Triggering deployment via API
+          # - Running database migrations
+          # - Smoke tests
+
+      - name: Run staging smoke tests
+        run: |
+          echo "Running staging smoke tests"
+          # Add smoke tests for staging environment
+
+  # =============================================================================
+  # PRODUCTION DEPLOYMENT
+  # =============================================================================
+
+  deploy-production:
+    name: 🌟 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build, ml-pipeline]
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: https://yourapp.com
+    steps:
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production environment"
+          # Add your production deployment logic here
+
+      - name: Run production smoke tests
+        run: |
+          echo "Running production smoke tests"
+          # Add smoke tests for production environment
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          echo "Sending deployment notification"
+          # Add notification logic (Slack, email, etc.)
+
+  # =============================================================================
+  # MONITORING & ALERTING
+  # =============================================================================
+
+  post-deployment:
+    name: 📊 Post-Deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: always() && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Update monitoring dashboards
+        run: |
+          echo "Updating monitoring dashboards"
+          # Update Grafana dashboards, alerts, etc.
+
+      - name: Generate deployment report
+        run: |
+          echo "Generating deployment report"
+          # Create deployment summary
+
+  # =============================================================================
+  # CLEANUP & MAINTENANCE
+  # =============================================================================
+
+  cleanup:
+    name: 🧹 Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy-production, deploy-staging]
+    if: always()
+    steps:
+      - name: Cleanup old artifacts
+        run: |
+          echo "Cleaning up old artifacts"
+          # Cleanup old Docker images, artifacts, etc.
+
+      - name: Update documentation
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          echo "Updating documentation"
+          # Auto-update documentation with new version
