@@ -1,26 +1,14 @@
-# Git and version control
+# =============================================================================
+# VERSION CONTROL
+# =============================================================================
 .git
 .gitignore
 .gitattributes
+.github/
 
-# Documentation
-README.md
-*.md
-docs/
-
-# Development files
-.env
-.env.local
-.env.*.local
-
-# IDE and editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Python cache and bytecode
+# =============================================================================
+# PYTHON
+# =============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -43,7 +31,17 @@ wheels/
 *.egg
 MANIFEST
 
-# Testing
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# =============================================================================
+# TESTING & COVERAGE
+# =============================================================================
 .pytest_cache/
 .coverage
 htmlcov/
@@ -51,65 +49,50 @@ htmlcov/
 .nox/
 coverage.xml
 *.cover
+*.py,cover
 .hypothesis/
+nosetests.xml
+.cache
 
-# Virtual environments
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-.venv/
+# =============================================================================
+# DEVELOPMENT TOOLS
+# =============================================================================
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# pyenv
-.python-version
+# =============================================================================
+# DOCUMENTATION
+# =============================================================================
+docs/_build/
+docs/build/
+site/
+*.md
+!README.md
 
-# pipenv
-Pipfile.lock
-
-# Docker
-docker-compose.override.yml
-Dockerfile.dev
-
-# Temporary files
-*.tmp
-*.temp
-.tmp/
-.temp/
-
-# Logs
+# =============================================================================
+# LOGS & TEMPORARY FILES
+# =============================================================================
 *.log
+*.log.*
 logs/
-*.out
-*.err
+tmp/
+temp/
+.tmp/
 
-# Data files (selectively include what's needed)
-data/raw/*.csv
-data/processed/*.csv
-!data/raw/.gitkeep
-!data/processed/.gitkeep
-
-# Model artifacts (exclude large model files from build context)
-models/*.pkl
-models/*.joblib
-models/*.h5
-models/*.pt
-models/*.pth
-!models/.gitkeep
-
-# MLflow artifacts
-mlruns/
-mlflow/
-
-# Monitoring and configuration
-monitoring/
-grafana-data/
-prometheus-data/
-
-# OS generated files
+# =============================================================================
+# OS-SPECIFIC FILES
+# =============================================================================
 .DS_Store
 .DS_Store?
 ._*
@@ -118,21 +101,91 @@ prometheus-data/
 ehthumbs.db
 Thumbs.db
 
-# Local development overrides
-docker-compose.local.yml
-docker-compose.override.yml
+# =============================================================================
+# PROJECT-SPECIFIC
+# =============================================================================
 
-# Build artifacts
-dist/
-build/
+# MLflow artifacts (runtime generated)
+mlruns/
+mlartifacts/
 
-# Secrets and sensitive data
-secrets/
-*.key
-*.pem
-*.crt
-*.p12
+# Model artifacts (runtime generated)
+models/
+
+# Data files (should be mounted or fetched at runtime)
+data/
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Test files
+tests/
+test_*.py
+*_test.py
+
+# Development dependencies
+requirements-dev.txt
+requirements-dev.lock
+
+# Security scan results
+bandit-report.json
+safety-report.json
+security-report.json
+
+# Performance test results
+locust-results/
+k6-results/
+*.har
 
 # Backup files
-*.bak
 *.backup
+*.bak
+backups/
+
+# =============================================================================
+# BUILD & DEPLOYMENT (exclude from docker context)
+# =============================================================================
+
+# Docker files (avoid recursion)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Kubernetes
+k8s/
+*.yaml
+*.yml
+!config.yml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# =============================================================================
+# CI/CD ARTIFACTS
+# =============================================================================
+.github/
+*.lock
+!requirements.lock
+!requirements-dev.lock
+
+# =============================================================================
+# MONITORING & METRICS
+# =============================================================================
+prometheus_data/
+grafana_data/
+metrics/
+
+# =============================================================================
+# MISCELLANEOUS
+# =============================================================================
+*.sqlite
+*.db
+node_modules/
+.npm
+*.pid

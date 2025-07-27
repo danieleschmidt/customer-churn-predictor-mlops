@@ -1,4 +1,45 @@
-# Security Guide
+# Security Policy
+
+## Overview
+
+The Customer Churn Predictor project takes security seriously. This document outlines our security practices, how to report vulnerabilities, and our commitment to maintaining a secure codebase.
+
+## Supported Versions
+
+We actively maintain security updates for the following versions:
+
+| Version | Supported          |
+| ------- | ------------------ |
+| 1.0.x   | :white_check_mark: |
+| < 1.0   | :x:                |
+
+## Reporting a Vulnerability
+
+### Where to Report
+
+**DO NOT** report security vulnerabilities through public GitHub issues, discussions, or pull requests.
+
+Instead, please send an email to: **security@yourorg.com**
+
+### What to Include
+
+Please include as much of the following information as possible:
+
+- **Type of issue** (e.g., buffer overflow, SQL injection, cross-site scripting, etc.)
+- **Full paths** of source file(s) related to the manifestation of the issue
+- **Location** of the affected source code (tag/branch/commit or direct URL)
+- **Step-by-step instructions** to reproduce the issue
+- **Proof-of-concept or exploit code** (if possible)
+- **Impact of the issue**, including how an attacker might exploit it
+
+### Response Timeline
+
+- **24 hours**: Initial response acknowledging receipt
+- **72 hours**: Preliminary assessment and severity classification
+- **7 days**: Detailed investigation and response plan
+- **30 days**: Security fix implemented and tested (for critical issues)
+
+## Security Guide
 
 This document provides comprehensive security guidance for the Customer Churn Prediction application, including container security, vulnerability management, and deployment hardening.
 

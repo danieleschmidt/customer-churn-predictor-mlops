@@ -10,31 +10,39 @@ ARG VERSION=1.0.0
 ARG VCS_REF
 
 # Add labels for container metadata
-LABEL org.label-schema.build-date=$BUILD_DATE \
-      org.label-schema.name="churn-predictor" \
-      org.label-schema.description="Customer churn prediction MLOps application" \
-      org.label-schema.version=$VERSION \
-      org.label-schema.vcs-ref=$VCS_REF \
-      org.label-schema.schema-version="1.0" \
-      maintainer="Terragon Labs"
+LABEL org.opencontainers.image.created=$BUILD_DATE \
+      org.opencontainers.image.title="churn-predictor" \
+      org.opencontainers.image.description="Production-ready ML system for customer churn prediction" \
+      org.opencontainers.image.version=$VERSION \
+      org.opencontainers.image.revision=$VCS_REF \
+      org.opencontainers.image.vendor="Terragon Labs" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.source="https://github.com/yourorg/customer-churn-predictor"
 
 # Install system dependencies for building
 RUN apt-get update && apt-get install -y \
     build-essential \
     gcc \
     g++ \
-    && rm -rf /var/lib/apt/lists/*
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY requirements.txt requirements-dev.txt ./
+# Copy dependency files first for better layer caching
+COPY requirements.txt requirements-dev.txt pyproject.toml ./
 
 # Install Python dependencies with optimizations
-RUN pip install --no-cache-dir --upgrade pip && \
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir gunicorn==23.0.0
+    pip install --no-cache-dir gunicorn==23.0.0 uvicorn[standard]==0.24.0
+
+# Copy application code
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+COPY config.yml ./
 
 # Production stage
 FROM python:3.12-slim as production

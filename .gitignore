@@ -172,7 +172,175 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# MLflow artifacts
 mlruns/
+mlartifacts/
 
 # Ignore trained models but track processed data
 models/
+
+# =============================================================================
+# PROJECT-SPECIFIC IGNORES
+# =============================================================================
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/launch.json
+.vscode/tasks.json
+.idea/
+*.swp
+*.swo
+*~
+
+# =============================================================================
+# SECURITY & SECRETS
+# =============================================================================
+
+# Environment files with secrets
+.env.local
+.env.production
+.env.staging
+.env.*.local
+
+# Security scan results
+security-report.json
+bandit-report.json
+safety-report.json
+
+# SSL certificates and keys
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# =============================================================================
+# BUILD & DEPLOYMENT
+# =============================================================================
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+docker-compose.local.yml
+
+# Kubernetes
+k8s-secrets.yml
+*.secret.yml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# =============================================================================
+# MONITORING & METRICS
+# =============================================================================
+
+# Prometheus data
+prometheus_data/
+
+# Grafana data
+grafana_data/
+
+# Application metrics
+metrics/
+*.metrics
+
+# =============================================================================
+# TESTING & QUALITY
+# =============================================================================
+
+# Test outputs
+test-results/
+test-reports/
+*.xml
+allure-results/
+allure-report/
+
+# Mutation testing
+.mutmut-cache
+mutmut-results.html
+
+# Performance testing
+locust-results/
+*.har
+
+# Load testing artifacts
+k6-results/
+artillery-results/
+
+# =============================================================================
+# DOCUMENTATION
+# =============================================================================
+
+# Generated documentation
+site/
+docs/build/
+docs/_build/
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# =============================================================================
+# DEPENDENCY MANAGEMENT
+# =============================================================================
+
+# Lock files (keeping committed)
+# requirements.lock
+# requirements-dev.lock
+
+# Pip tools
+pip-tools/
+
+# =============================================================================
+# BACKUP & RECOVERY
+# =============================================================================
+
+# Backup files
+*.backup
+*.bak
+backups/
+
+# Data exports
+exports/
+*.dump
+
+# =============================================================================
+# DEVELOPMENT TOOLS
+# =============================================================================
+
+# Pre-commit
+.pre-commit-config.yaml.backup
+
+# Git hooks
+.git/hooks/pre-push
+.git/hooks/pre-commit
+
+# Profiling
+*.prof
+profile_output/
+
+# Debugging
+debug.log
+*.debug
