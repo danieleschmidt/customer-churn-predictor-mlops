@@ -2,14 +2,14 @@ metadata:
   project: customer-churn-predictor-mlops
   repo_root: /root/repo
   scope: current_repo_only
-  last_discovery: '2025-07-26T22:51:16.251709'
+  last_discovery: '2025-07-27T04:26:48.324192'
   wsjf_threshold: 1.0
   aging_multiplier_max: 2.0
 critical_items:
 - id: MED-002
   title: Enhance Prometheus Metrics Collection
   type: observability
-  status: NEW
+  status: DONE
   risk_tier: LOW
   created_at: '2025-07-24'
   description: Basic metrics exist but could be expanded for better operational insight
@@ -20,18 +20,18 @@ critical_items:
   time_criticality: 2
   risk_reduction: 5
   job_size: 3
-  wsjf_score: 3.91
+  wsjf_score: 4.03
   acceptance_criteria:
   - Add API endpoint performance metrics
   - Track model prediction latency
   - Monitor memory and CPU usage
   - Add custom business metrics
   links: *id001
-  aging_days: 2
+  aging_days: 3
 - id: MED-001
   title: Add Docker Health Check Integration Tests
   type: testing
-  status: NEW
+  status: DONE
   risk_tier: LOW
   created_at: '2025-07-24'
   description: Docker setup exists but lacks integration testing for containerized
@@ -43,18 +43,18 @@ critical_items:
   time_criticality: 3
   risk_reduction: 6
   job_size: 4
-  wsjf_score: 3.73
+  wsjf_score: 3.85
   acceptance_criteria:
   - Add Docker container startup tests
   - Test health check endpoint in container
   - Verify environment variable handling
   - Test volume mounts and permissions
   links: *id002
-  aging_days: 2
+  aging_days: 3
 - id: TODO-4481
   title: Address TODO in index.md:155
   type: bug_fix
-  status: NEW
+  status: DONE
   risk_tier: LOW
   created_at: '2025-07-26'
   description: '-   :material-bug:{ .lg .middle } __Troubleshooting__'
@@ -64,18 +64,506 @@ critical_items:
   time_criticality: 2
   risk_reduction: 2
   job_size: 2
-  wsjf_score: 3.5
+  wsjf_score: 3.62
   acceptance_criteria:
   - Resolve TODO comment at /root/repo/docs/index.md:155
   links: *id003
+  aging_days: 1
+- id: TODO-7381
+  title: Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:87
+  type: technical_debt
+  status: DOING
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: "- `TODO:` comments \u2192 Technical debt items"
+  files: &id004
+  - /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:87
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:87
+  links: *id004
+  aging_days: 0
+- id: TODO-7772
+  title: Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:88
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: "- `FIXME:` comments \u2192 Bug fix items"
+  files: &id005
+  - /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:88
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:88
+  links: *id005
+  aging_days: 0
+- id: TODO-7362
+  title: Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:89
+  type: refactoring
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: "- `HACK:` comments \u2192 Refactoring items"
+  files: &id006
+  - /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:89
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:89
+  links: *id006
+  aging_days: 0
+- id: TODO-3270
+  title: Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:90
+  type: technical_debt
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: "- `XXX:` comments \u2192 Investigation items"
+  files: &id007
+  - /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:90
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:90
+  links: *id007
+  aging_days: 0
+- id: TODO-7044
+  title: Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:91
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: "- `BUG:` comments \u2192 Critical bug fixes"
+  files: &id008
+  - /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:91
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:91
+  links: *id008
+  aging_days: 0
+- id: TODO-7246
+  title: Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:338
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'python3 -c "import re; print(re.findall(r''TODO|FIXME'', ''TODO: test''))"'
+  files: &id009
+  - /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:338
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:338
+  links: *id009
+  aging_days: 0
+- id: TODO-5669
+  title: Address TODO in backlog.yml:60
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'description: ''-   :material-bug:{ .lg .middle } __Troubleshooting__'''
+  files: &id010
+  - /root/repo/backlog.yml:60
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/backlog.yml:60
+  links: *id010
+  aging_days: 0
+- id: TODO-2355
+  title: Address TODO in index.md:155
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: '-   :material-bug:{ .lg .middle } __Troubleshooting__'
+  files: &id011
+  - /root/repo/docs/index.md:155
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/docs/index.md:155
+  links: *id011
+  aging_days: 0
+- id: TODO-3302
+  title: Address TODO in pyproject.toml:184
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: '"if self.debug:",'
+  files: &id012
+  - /root/repo/pyproject.toml:184
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/pyproject.toml:184
+  links: *id012
+  aging_days: 0
+- id: TODO-1570
+  title: Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:87
+  type: technical_debt
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: "- `TODO:` comments \u2192 Technical debt items"
+  files: &id013
+  - /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:87
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:87
+  links: *id013
+  aging_days: 0
+- id: TODO-0709
+  title: Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:88
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: "- `FIXME:` comments \u2192 Bug fix items"
+  files: &id014
+  - /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:88
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:88
+  links: *id014
+  aging_days: 0
+- id: TODO-1390
+  title: Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:89
+  type: refactoring
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: "- `HACK:` comments \u2192 Refactoring items"
+  files: &id015
+  - /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:89
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:89
+  links: *id015
+  aging_days: 0
+- id: TODO-4467
+  title: Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:90
+  type: technical_debt
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: "- `XXX:` comments \u2192 Investigation items"
+  files: &id016
+  - /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:90
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:90
+  links: *id016
+  aging_days: 0
+- id: TODO-0793
+  title: Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:91
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: "- `BUG:` comments \u2192 Critical bug fixes"
+  files: &id017
+  - /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:91
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:91
+  links: *id017
+  aging_days: 0
+- id: TODO-9485
+  title: Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:338
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'python3 -c "import re; print(re.findall(r''TODO|FIXME'', ''TODO: test''))"'
+  files: &id018
+  - /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:338
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/AUTONOMOUS_BACKLOG_GUIDE.md:338
+  links: *id018
+  aging_days: 0
+- id: TODO-3734
+  title: Address TODO in backlog.yml:60
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'description: ''-   :material-bug:{ .lg .middle } __Troubleshooting__'''
+  files: &id019
+  - /root/repo/backlog.yml:60
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/backlog.yml:60
+  links: *id019
+  aging_days: 0
+- id: TODO-0980
+  title: Address TODO in backlog.yml:78
+  type: technical_debt
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'description: "- `TODO:` comments \u2192 Technical debt items"'
+  files: &id020
+  - /root/repo/backlog.yml:78
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/backlog.yml:78
+  links: *id020
+  aging_days: 0
+- id: TODO-8755
+  title: Address TODO in backlog.yml:96
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'description: "- `FIXME:` comments \u2192 Bug fix items"'
+  files: &id021
+  - /root/repo/backlog.yml:96
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/backlog.yml:96
+  links: *id021
+  aging_days: 0
+- id: TODO-3296
+  title: Address TODO in backlog.yml:114
+  type: refactoring
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'description: "- `HACK:` comments \u2192 Refactoring items"'
+  files: &id022
+  - /root/repo/backlog.yml:114
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/backlog.yml:114
+  links: *id022
+  aging_days: 0
+- id: TODO-8536
+  title: Address TODO in backlog.yml:132
+  type: technical_debt
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'description: "- `XXX:` comments \u2192 Investigation items"'
+  files: &id023
+  - /root/repo/backlog.yml:132
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/backlog.yml:132
+  links: *id023
+  aging_days: 0
+- id: TODO-7284
+  title: Address TODO in backlog.yml:150
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'description: "- `BUG:` comments \u2192 Critical bug fixes"'
+  files: &id024
+  - /root/repo/backlog.yml:150
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/backlog.yml:150
+  links: *id024
+  aging_days: 0
+- id: TODO-1066
+  title: Address TODO in backlog.yml:168
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'description: ''python3 -c "import re; print(re.findall(r''''TODO|FIXME'''',
+    ''''TODO: test''''))"'''
+  files: &id025
+  - /root/repo/backlog.yml:168
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/backlog.yml:168
+  links: *id025
+  aging_days: 0
+- id: TODO-6766
+  title: Address TODO in backlog.yml:186
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'description: ''description: ''''-   :material-bug:{ .lg .middle }
+    __Troubleshooting__'''''''
+  files: &id026
+  - /root/repo/backlog.yml:186
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/backlog.yml:186
+  links: *id026
+  aging_days: 0
+- id: TODO-7163
+  title: Address TODO in backlog.yml:204
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'description: ''-   :material-bug:{ .lg .middle } __Troubleshooting__'''
+  files: &id027
+  - /root/repo/backlog.yml:204
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/backlog.yml:204
+  links: *id027
+  aging_days: 0
+- id: TODO-1925
+  title: Address TODO in backlog.yml:222
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: 'description: ''"if self.debug:",'''
+  files: &id028
+  - /root/repo/backlog.yml:222
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/backlog.yml:222
+  links: *id028
+  aging_days: 0
+- id: TODO-4999
+  title: Address TODO in index.md:155
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: '-   :material-bug:{ .lg .middle } __Troubleshooting__'
+  files: &id029
+  - /root/repo/docs/index.md:155
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/docs/index.md:155
+  links: *id029
+  aging_days: 0
+- id: TODO-4107
+  title: Address TODO in pyproject.toml:184
+  type: bug_fix
+  status: NEW
+  risk_tier: LOW
+  created_at: '2025-07-27'
+  description: '"if self.debug:",'
+  files: &id030
+  - /root/repo/pyproject.toml:184
+  business_value: 3
+  time_criticality: 2
+  risk_reduction: 2
+  job_size: 2
+  wsjf_score: 3.5
+  acceptance_criteria:
+  - Resolve TODO comment at /root/repo/pyproject.toml:184
+  links: *id030
   aging_days: 0
 high_priority: []
 medium_priority: []
 low_priority: []
 metrics:
-  total_items: 3
-  critical_count: 3
+  total_items: 30
+  critical_count: 30
   high_priority_count: 0
   medium_priority_count: 0
   low_priority_count: 0
-  avg_wsjf_score: 3.714814814814815
+  avg_wsjf_score: 3.533333333333333

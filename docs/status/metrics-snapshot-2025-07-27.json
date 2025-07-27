@@ -1,0 +1,64 @@
+{
+  "completed_ids": [
+    "MED-002",
+    "MED-001",
+    "TODO-4481"
+  ],
+  "coverage_delta": 0.0,
+  "flaky_tests": [],
+  "ci_summary": "passing",
+  "open_prs": 0,
+  "risks_or_blocks": [],
+  "backlog_size_by_status": {
+    "NEW": 26,
+    "REFINED": 0,
+    "READY": 0,
+    "DOING": 1,
+    "PR": 0,
+    "DONE": 3,
+    "BLOCKED": 0
+  },
+  "avg_cycle_time": 24.0,
+  "dora": {
+    "deploy_freq": "daily",
+    "lead_time": "24h",
+    "change_fail_rate": "5%",
+    "mttr": "2h"
+  },
+  "rerere_auto_resolved_total": 0,
+  "merge_driver_hits_total": 0,
+  "ci_failure_rate": 5.0,
+  "pr_backoff_state": "inactive",
+  "wsjf_snapshot": [
+    {
+      "id": "MED-002",
+      "title": "Enhance Prometheus Metrics Collection",
+      "wsjf_score": 4.033333333333333,
+      "status": "DONE"
+    },
+    {
+      "id": "MED-001",
+      "title": "Add Docker Health Check Integration Tests",
+      "wsjf_score": 3.8500000000000005,
+      "status": "DONE"
+    },
+    {
+      "id": "TODO-4481",
+      "title": "Address TODO in index.md:155",
+      "wsjf_score": 3.616666666666667,
+      "status": "DONE"
+    },
+    {
+      "id": "TODO-7381",
+      "title": "Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:87",
+      "wsjf_score": 3.5,
+      "status": "DOING"
+    },
+    {
+      "id": "TODO-7772",
+      "title": "Address TODO in AUTONOMOUS_BACKLOG_GUIDE.md:88",
+      "wsjf_score": 3.5,
+      "status": "NEW"
+    }
+  ]
+}
