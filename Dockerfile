@@ -2,7 +2,7 @@
 # Multi-stage Docker build for production deployment
 
 # Build stage
-FROM python:3.12-slim as builder
+FROM python:3.13-slim as builder
 
 # Set build arguments
 ARG BUILD_DATE
@@ -45,7 +45,7 @@ COPY scripts/ ./scripts/
 COPY config.yml ./
 
 # Production stage
-FROM python:3.12-slim as production
+FROM python:3.13-slim as production
 
 # Set runtime arguments
 ARG USER_ID=1000
