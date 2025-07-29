@@ -1,0 +1,217 @@
+# Performance Optimization Configuration
+# Advanced performance monitoring and optimization settings
+
+# Application Performance Monitoring (APM)
+apm:
+  enabled: true
+  service_name: "customer-churn-predictor"
+  environment: "production"
+  
+  # Tracing configuration
+  tracing:
+    sample_rate: 0.1  # 10% sampling for production
+    max_spans: 1000
+    include_source: true
+    
+  # Metrics collection
+  metrics:
+    - name: "prediction_latency"
+      type: "histogram"
+      buckets: [0.01, 0.05, 0.1, 0.5, 1.0, 5.0]
+    - name: "model_accuracy"
+      type: "gauge"
+    - name: "data_processing_time"
+      type: "histogram"
+      buckets: [0.1, 0.5, 1.0, 5.0, 10.0, 30.0]
+    - name: "memory_usage"
+      type: "gauge"
+    - name: "cache_hit_rate"
+      type: "gauge"
+
+# Caching Strategy
+cache:
+  # Redis configuration for model caching
+  redis:
+    host: "redis"
+    port: 6379
+    db: 0
+    ttl: 3600  # 1 hour
+    max_connections: 100
+    
+  # Application-level caching
+  application:
+    # Model cache settings
+    model_cache:
+      max_size: 5  # Maximum number of models to cache
+      ttl: 3600    # Cache TTL in seconds
+      eviction_policy: "lru"
+    
+    # Prediction cache settings
+    prediction_cache:
+      max_size: 10000  # Maximum predictions to cache
+      ttl: 300         # 5 minutes
+      key_prefix: "pred:"
+    
+    # Feature cache settings
+    feature_cache:
+      max_size: 1000
+      ttl: 1800  # 30 minutes
+      key_prefix: "feat:"
+
+# Database Optimization
+database:
+  # Connection pooling
+  connection_pool:
+    min_connections: 5
+    max_connections: 20
+    connection_timeout: 30
+    idle_timeout: 300
+    
+  # Query optimization
+  query_optimization:
+    # Enable query caching
+    query_cache: true
+    # Statement timeout in seconds
+    statement_timeout: 30
+    # Enable prepared statements
+    prepared_statements: true
+    
+  # Batch processing optimization
+  batch_processing:
+    batch_size: 1000
+    commit_interval: 100
+    parallel_workers: 4
+
+# ML Model Optimization
+model_optimization:
+  # Model serving optimization
+  serving:
+    # Enable model quantization
+    quantization: true
+    # Batch inference settings
+    batch_size: 32
+    max_batch_delay: 0.1  # 100ms
+    
+  # Model loading optimization
+  loading:
+    # Lazy loading of models
+    lazy_loading: true
+    # Preload commonly used models
+    preload_models: ["default_churn_model"]
+    # Model warmup settings
+    warmup_requests: 10
+    
+  # Feature engineering optimization
+  feature_engineering:
+    # Vectorized operations
+    vectorized_ops: true
+    # Parallel feature computation
+    parallel_features: true
+    # Feature selection optimization
+    feature_selection: true
+
+# Memory Management
+memory:
+  # Garbage collection optimization
+  gc_optimization:
+    # Python GC settings
+    gc_threshold_0: 700
+    gc_threshold_1: 10
+    gc_threshold_2: 10
+    
+  # Memory limits
+  limits:
+    max_heap_size: "2g"
+    max_rss: "3g"
+    
+  # Memory monitoring
+  monitoring:
+    enable_memory_profiling: true
+    memory_leak_detection: true
+    oom_detection: true
+
+# CPU Optimization
+cpu:
+  # Threading configuration
+  threading:
+    max_workers: 8
+    thread_pool_size: 16
+    enable_thread_affinity: true
+    
+  # Process optimization
+  process:
+    # Enable multiprocessing for batch jobs
+    multiprocessing: true
+    process_pool_size: 4
+    
+  # CPU monitoring
+  monitoring:
+    cpu_profiling: true
+    context_switch_monitoring: true
+
+# I/O Optimization
+io_optimization:
+  # Async I/O settings
+  async_io:
+    enabled: true
+    max_concurrent_requests: 100
+    
+  # File I/O optimization
+  file_io:
+    buffer_size: 65536  # 64KB
+    use_sendfile: true
+    enable_compression: true
+    
+  # Network optimization
+  network:
+    keep_alive: true
+    tcp_nodelay: true
+    socket_timeout: 30
+
+# Monitoring and Alerting
+monitoring:
+  # Performance thresholds
+  thresholds:
+    response_time_p99: 1.0  # 1 second
+    response_time_p95: 0.5  # 500ms
+    response_time_p50: 0.1  # 100ms
+    error_rate: 0.01        # 1%
+    cpu_usage: 0.8          # 80%
+    memory_usage: 0.85      # 85%
+    
+  # Alerting rules
+  alerts:
+    - name: "High Response Time"
+      condition: "response_time_p99 > 2.0"
+      severity: "warning"
+    - name: "High Error Rate"
+      condition: "error_rate > 0.05"
+      severity: "critical"
+    - name: "Memory Usage High"
+      condition: "memory_usage > 0.9"
+      severity: "warning"
+    - name: "CPU Usage High"
+      condition: "cpu_usage > 0.9"
+      severity: "warning"
+
+# Load Testing Configuration
+load_testing:
+  scenarios:
+    - name: "normal_load"
+      users: 50
+      duration: "5m"
+      ramp_up: "1m"
+    - name: "peak_load"
+      users: 200
+      duration: "10m"
+      ramp_up: "2m"
+    - name: "stress_test"
+      users: 500
+      duration: "15m"
+      ramp_up: "5m"
+      
+  # Performance targets
+  targets:
+    max_response_time: 2000  # 2 seconds
+    error_rate_threshold: 0.01  # 1%
+    min_throughput: 100  # requests per second

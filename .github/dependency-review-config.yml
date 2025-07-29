@@ -1,0 +1,89 @@
+# Dependency Review Configuration
+# https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/configuring-dependency-review
+
+# Fail the action on vulnerabilities with the given severity or higher
+fail-on-severity: high
+
+# Fail the action on vulnerabilities that have no available patch
+fail-on-scopes:
+  - runtime
+  - development
+
+# Allow or deny specific licenses
+allow-licenses:
+  - MIT
+  - Apache-2.0
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - ISC
+  - Unlicense
+  - CC0-1.0
+
+deny-licenses:
+  - GPL-2.0
+  - GPL-3.0
+  - AGPL-3.0
+  - LGPL-2.1
+  - LGPL-3.0
+  - CC-BY-SA-4.0
+
+# Fail on packages from specific groups
+deny-groups:
+  - "packages with critical vulnerabilities"
+  - "deprecated packages"
+
+# Allow specific packages that might normally be flagged
+allow-dependencies:
+  - name: "numpy"
+    reason: "Core ML dependency - security reviewed"
+  - name: "pandas"
+    reason: "Data processing framework - security reviewed"
+  - name: "scikit-learn"
+    reason: "ML framework - security reviewed"
+  - name: "mlflow"
+    reason: "MLOps platform - security reviewed"
+
+# Vulnerability database configurations
+vulnerability-check:
+  # Include security advisories
+  security-advisories: true
+  # Include withdrawal notices
+  withdrawal-notices: true
+  # Include malware reports
+  malware-reports: true
+
+# Package ecosystem specific rules
+package-rules:
+  python:
+    # Minimum supported Python version
+    min-python-version: "3.12"
+    # Check for wheel integrity
+    verify-wheels: true
+    # Check package signatures
+    verify-signatures: true
+  
+  npm:
+    # Check for known malicious packages
+    malware-check: true
+    # Verify package integrity
+    integrity-check: true
+
+# Advanced security checks
+security-checks:
+  # Check for typosquatting
+  typosquatting: true
+  # Check for dependency confusion
+  dependency-confusion: true
+  # Check for backdoored packages
+  backdoor-detection: true
+  # Check for abandoned packages
+  abandoned-packages: true
+
+# Reporting configuration
+reporting:
+  # Create detailed security report
+  detailed-report: true
+  # Include remediation suggestions
+  remediation-suggestions: true
+  # Export results to SARIF
+  sarif-export: true

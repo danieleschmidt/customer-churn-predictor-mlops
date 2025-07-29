@@ -1,0 +1,77 @@
+# Advanced Security Configuration for GitHub Advanced Security
+# Enables CodeQL analysis, secret scanning, and dependency review
+# https://docs.github.com/en/code-security/getting-started/github-security-features
+
+# CodeQL Configuration
+codeql:
+  languages:
+    - python
+  queries:
+    - security-extended
+    - security-and-quality
+  paths-ignore:
+    - '**/tests/**'
+    - '**/test_*.py'
+    - 'docs/**'
+    - '**/*.md'
+  config-file: .github/codeql/codeql-config.yml
+
+# Secret Scanning Configuration
+secret-scanning:
+  # Custom patterns for application-specific secrets
+  custom-patterns:
+    - name: "MLflow Tracking URI"
+      regex: "mlflow://[a-zA-Z0-9.-]+:[0-9]+"
+      secretType: "connection_string"
+    - name: "API Key Pattern"
+      regex: "[Aa][Pp][Ii][_-]?[Kk][Ee][Yy][\s]*[:=][\s]*['\"]?[a-zA-Z0-9]{16,}['\"]?"
+      secretType: "api_key"
+    - name: "Database Connection String"
+      regex: "(postgresql|mysql|mongodb)://[a-zA-Z0-9:@.-]+/[a-zA-Z0-9_-]+"
+      secretType: "connection_string"
+  
+  # Push protection for critical secrets
+  push-protection:
+    enabled: true
+    bypass-actors:
+      - "security-team"
+      - "devops-team"
+
+# Dependency Review Configuration
+dependency-review:
+  # Fail on high severity vulnerabilities
+  fail-on-severity: "high"
+  # Allow specific licenses
+  allow-licenses:
+    - "MIT"
+    - "Apache-2.0"
+    - "BSD-3-Clause"
+    - "BSD-2-Clause"
+  # Deny specific licenses
+  deny-licenses:
+    - "GPL-3.0"
+    - "AGPL-3.0"
+  # Vulnerability database
+  vulnerability-check: true
+  config-file: .github/dependency-review-config.yml
+
+# Security Advisories
+security-advisories:
+  # Auto-create issues for security advisories
+  auto-create-issues: true
+  # Labels for security issues
+  labels:
+    - "security"
+    - "vulnerability"
+    - "high-priority"
+  # Assignees for security issues
+  assignees:
+    - "@security-team"
+    - "@team-leads"
+
+# SARIF Upload Configuration
+sarif:
+  # Upload results from third-party security tools
+  upload-third-party: true
+  # Retention period for SARIF files
+  retention-days: 90

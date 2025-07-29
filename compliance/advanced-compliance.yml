@@ -1,0 +1,474 @@
+# Advanced Compliance and Governance Configuration
+# SOC 2, ISO 27001, GDPR, and SLSA compliance settings
+
+# Global Compliance Settings
+global:
+  organization: "Customer Churn Predictor MLOps"
+  compliance_frameworks:
+    - "SOC2_TYPE2"
+    - "ISO27001"
+    - "GDPR"
+    - "SLSA_LEVEL3"
+    - "NIST_CSF"
+  compliance_officer: "compliance@company.com"
+  audit_retention_period: "7_years"
+  
+# SOC 2 Type II Compliance
+soc2:
+  # Trust Services Criteria
+  trust_criteria:
+    security:
+      # Access controls
+      access_controls:
+        multi_factor_authentication: true
+        role_based_access_control: true
+        principle_of_least_privilege: true
+        regular_access_reviews: true
+        access_review_frequency: "quarterly"
+        
+      # Logical and physical access
+      physical_access:
+        data_center_security: true
+        biometric_access_controls: true
+        visitor_management: true
+        
+      # System operations
+      system_operations:
+        change_management: true
+        incident_response: true
+        vulnerability_management: true
+        
+    availability:
+      # System availability
+      availability_targets:
+        uptime_sla: 99.9
+        recovery_time_objective: "4_hours"
+        recovery_point_objective: "1_hour"
+        
+      # Monitoring and alerting
+      monitoring:
+        24x7_monitoring: true
+        automated_alerting: true
+        escalation_procedures: true
+        
+    processing_integrity:
+      # Data processing controls
+      processing_controls:
+        input_validation: true
+        output_verification: true
+        error_handling: true
+        data_quality_checks: true
+        
+      # ML model integrity
+      model_integrity:
+        model_versioning: true
+        model_validation: true
+        prediction_monitoring: true
+        drift_detection: true
+        
+    confidentiality:
+      # Data protection
+      data_protection:
+        encryption_at_rest: true
+        encryption_in_transit: true
+        key_management: true
+        data_classification: true
+        
+      # Information handling
+      information_handling:
+        data_retention_policies: true
+        secure_disposal: true
+        confidentiality_agreements: true
+        
+    privacy:
+      # Personal information protection
+      pi_protection:
+        privacy_notice: true
+        consent_management: true
+        data_subject_rights: true
+        breach_notification: true
+        
+  # Controls implementation
+  controls:
+    # Organizational controls
+    organizational:
+      - control_id: "CC1.1"
+        description: "Management establishes structures and processes"
+        implementation: "documented"
+        evidence: "governance_framework.pdf"
+        
+    # Risk assessment
+    risk_assessment:
+      - control_id: "CC3.1"
+        description: "Risk identification and analysis"
+        implementation: "quarterly_risk_assessment"
+        evidence: "risk_register.xlsx"
+        
+# ISO 27001 Compliance
+iso27001:
+  # Information Security Management System (ISMS)
+  isms:
+    # ISMS scope
+    scope:
+      - "ML model development and deployment"
+      - "Customer data processing"
+      - "API and web services"
+      - "Cloud infrastructure"
+      
+    # Information security policy
+    policy:
+      document: "ISO27001_Information_Security_Policy.pdf"
+      review_frequency: "annual"
+      approval_authority: "CISO"
+      
+  # Annex A Controls (114 controls)
+  controls:
+    # A.5 Information security policies
+    A_5:
+      A_5_1_1:
+        control: "Information security policy"
+        status: "implemented"
+        evidence: "security_policy.pdf"
+        
+    # A.6 Organization of information security
+    A_6:
+      A_6_1_1:
+        control: "Information security roles and responsibilities"
+        status: "implemented"
+        evidence: "roles_responsibilities.pdf"
+        
+    # A.8 Asset management
+    A_8:
+      A_8_1_1:
+        control: "Inventory of assets"
+        status: "implemented"
+        evidence: "asset_inventory.xlsx"
+        
+    # A.9 Access control
+    A_9:
+      A_9_1_1:
+        control: "Access control policy"
+        status: "implemented"
+        evidence: "access_control_policy.pdf"
+        
+    # A.12 Operations security
+    A_12:
+      A_12_1_1:
+        control: "Operational procedures and responsibilities"
+        status: "implemented"
+        evidence: "operational_procedures.pdf"
+        
+    # A.13 Communications security
+    A_13:
+      A_13_1_1:
+        control: "Network security management"
+        status: "implemented"
+        evidence: "network_security_policy.pdf"
+        
+    # A.14 System acquisition, development and maintenance
+    A_14:
+      A_14_1_1:
+        control: "Information security requirements analysis"
+        status: "implemented"
+        evidence: "security_requirements.pdf"
+        
+  # Risk treatment
+  risk_treatment:
+    risk_acceptance_criteria:
+      low: "acceptable_without_treatment"
+      medium: "requires_mitigation"
+      high: "requires_immediate_action"
+      critical: "business_critical_response"
+      
+# GDPR Compliance
+gdpr:
+  # Legal basis for processing
+  legal_basis:
+    - basis: "legitimate_interest"
+      purpose: "fraud_detection"
+      documentation: "LIA_fraud_detection.pdf"
+    - basis: "consent"
+      purpose: "marketing_analytics"
+      documentation: "consent_forms.pdf"
+      
+  # Data protection principles
+  principles:
+    lawfulness_fairness_transparency: true
+    purpose_limitation: true
+    data_minimisation: true
+    accuracy: true
+    storage_limitation: true
+    integrity_confidentiality: true
+    accountability: true
+    
+  # Data subject rights
+  data_subject_rights:
+    right_of_access:
+      implementation: "automated_subject_access_request"
+      response_time: "30_days"
+      
+    right_to_rectification:
+      implementation: "data_correction_api"
+      response_time: "72_hours"
+      
+    right_to_erasure:
+      implementation: "right_to_be_forgotten_service"
+      response_time: "30_days"
+      
+    right_to_portability:
+      implementation: "data_export_service"
+      format: "JSON"
+      response_time: "30_days"
+      
+  # Privacy by design
+  privacy_by_design:
+    default_privacy_settings: true
+    data_protection_impact_assessment: true
+    privacy_enhancing_technologies: true
+    regular_privacy_reviews: true
+    
+  # International transfers
+  international_transfers:
+    adequacy_decisions: ["UK", "Canada"]
+    standard_contractual_clauses: true
+    binding_corporate_rules: false
+    
+# SLSA (Supply Chain Levels for Software Artifacts)
+slsa:
+  # SLSA Level 3 Requirements
+  level: 3
+  
+  # Source requirements
+  source:
+    version_controlled: true
+    verified_history: true
+    retained_indefinitely: true
+    two_person_reviewed: true
+    
+  # Build requirements
+  build:
+    scripted_build: true
+    build_service: "github_actions"
+    ephemeral_environment: true
+    isolated: true
+    parameterless: true
+    hermetic: true
+    reproducible: true
+    
+  # Provenance requirements
+  provenance:
+    available: true
+    authenticated: true
+    service_generated: true
+    non_falsifiable: true
+    dependencies_complete: true
+    
+  # Common requirements
+  common:
+    security_controls: true
+    access_controls: true
+    superuser_access: false
+    
+  # Attestations
+  attestations:
+    build_attestation:
+      format: "in-toto"
+      signature_algorithm: "Ed25519"
+      
+    vulnerability_attestation:
+      scanner: "trivy"
+      scan_frequency: "on_every_build"
+      
+# NIST Cybersecurity Framework
+nist_csf:
+  # Framework functions
+  functions:
+    identify:
+      # Asset Management (ID.AM)
+      asset_management:
+        ID_AM_1: "Physical devices and systems inventoried"
+        ID_AM_2: "Software platforms and applications inventoried"
+        ID_AM_3: "Organizational communication and data flows mapped"
+        
+      # Risk Assessment (ID.RA)
+      risk_assessment:
+        ID_RA_1: "Asset vulnerabilities identified and documented"
+        ID_RA_2: "Cyber threat intelligence received from information sharing forums"
+        
+    protect:
+      # Access Control (PR.AC)
+      access_control:
+        PR_AC_1: "Identities and credentials managed for authorized devices"
+        PR_AC_3: "Remote access managed"
+        PR_AC_4: "Access permissions and authorizations managed"
+        
+      # Data Security (PR.DS)
+      data_security:
+        PR_DS_1: "Data-at-rest protected"
+        PR_DS_2: "Data-in-transit protected"
+        PR_DS_5: "Protections against data leaks implemented"
+        
+    detect:
+      # Anomalies and Events (DE.AE)
+      anomalies_events:
+        DE_AE_1: "Baseline of network operations established"
+        DE_AE_2: "Detected events analyzed"
+        
+      # Security Continuous Monitoring (DE.CM)
+      continuous_monitoring:
+        DE_CM_1: "Networks and network communications monitored"
+        DE_CM_3: "Personnel activity monitored"
+        
+    respond:
+      # Response Planning (RS.RP)
+      response_planning:
+        RS_RP_1: "Response plan executed during or after incident"
+        
+      # Communications (RS.CO)
+      communications:
+        RS_CO_2: "Incidents reported consistent with established criteria"
+        
+    recover:
+      # Recovery Planning (RC.RP)
+      recovery_planning:
+        RC_RP_1: "Recovery plan executed during or after cybersecurity incident"
+        
+# Audit and Monitoring
+audit:
+  # Audit logging
+  logging:
+    # Security events
+    security_events:
+      - "authentication_attempts"
+      - "authorization_failures"
+      - "data_access"
+      - "system_changes"
+      - "security_policy_violations"
+      
+    # Business events
+    business_events:
+      - "model_predictions"
+      - "data_processing"
+      - "api_requests"
+      - "user_actions"
+      
+    # System events
+    system_events:
+      - "system_startup_shutdown"
+      - "service_failures"
+      - "resource_exhaustion"
+      - "configuration_changes"
+      
+  # Log integrity
+  log_integrity:
+    digital_signatures: true
+    tamper_detection: true
+    centralized_logging: true
+    log_correlation: true
+    
+  # Audit trails
+  audit_trails:
+    retention_period: "7_years"
+    immutable_storage: true
+    access_controls: true
+    regular_reviews: true
+    
+# Compliance Monitoring
+monitoring:
+  # Automated compliance checks
+  automated_checks:
+    frequency: "daily"
+    
+    # Security compliance
+    security_checks:
+      - "encryption_status"
+      - "access_control_violations"
+      - "vulnerability_scan_results"
+      - "security_policy_compliance"
+      
+    # Privacy compliance
+    privacy_checks:
+      - "data_retention_compliance"
+      - "consent_status"
+      - "data_subject_request_processing"
+      - "cross_border_transfer_compliance"
+      
+  # Compliance reporting
+  reporting:
+    # Internal reporting
+    internal:
+      frequency: "monthly"
+      recipients: ["compliance_officer", "ciso", "management"]
+      
+    # External reporting
+    external:
+      regulatory_reports: true
+      audit_reports: true
+      customer_reports: true
+      
+  # Key performance indicators
+  kpis:
+    - name: "compliance_score"
+      target: 95
+      measurement: "percentage_of_controls_implemented"
+      
+    - name: "incident_response_time"
+      target: "4_hours"
+      measurement: "time_to_containment"
+      
+    - name: "data_subject_request_response_time"
+      target: "30_days"
+      measurement: "average_response_time"
+      
+# Training and Awareness
+training:
+  # Security awareness training
+  security_awareness:
+    frequency: "quarterly"
+    topics:
+      - "phishing_awareness"
+      - "password_security"
+      - "data_protection"
+      - "incident_reporting"
+      
+  # Compliance training
+  compliance_training:
+    frequency: "annual"
+    topics:
+      - "gdpr_requirements"
+      - "data_handling_procedures"
+      - "breach_notification"
+      - "audit_procedures"
+      
+  # Technical training
+  technical_training:
+    frequency: "bi_annual"
+    topics:
+      - "secure_coding_practices"
+      - "infrastructure_security"
+      - "ml_security"
+      - "incident_response"
+      
+# Vendor Management
+vendor_management:
+  # Due diligence
+  due_diligence:
+    security_questionnaire: true
+    compliance_certifications: true
+    financial_stability_check: true
+    reference_checks: true
+    
+  # Contract requirements
+  contract_requirements:
+    security_clauses: true
+    data_protection_clauses: true
+    audit_rights: true
+    breach_notification: true
+    liability_coverage: true
+    
+  # Ongoing monitoring
+  ongoing_monitoring:
+    regular_assessments: true
+    performance_monitoring: true
+    compliance_reviews: true
+    incident_reporting: true

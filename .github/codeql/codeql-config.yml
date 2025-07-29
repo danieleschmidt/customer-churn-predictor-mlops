@@ -1,0 +1,78 @@
+# CodeQL Configuration for Advanced Security Analysis
+# https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/customizing-code-scanning
+
+name: "Advanced CodeQL Configuration for MLOps"
+
+queries:
+  - name: security-extended
+    uses: security-extended
+  - name: security-and-quality  
+    uses: security-and-quality
+  - name: python-ml-security
+    uses: ./queries/python-ml-security.ql
+
+paths-ignore:
+  - '**/test_*.py'
+  - '**/tests/**'
+  - 'docs/**'
+  - '**/*.md'
+  - 'htmlcov/**'
+  - '.pytest_cache/**'
+  - 'mlruns/**'
+  - 'mlartifacts/**'
+
+paths:
+  - 'src/**'
+  - 'scripts/**'
+  - '*.py'
+
+# ML/AI specific security checks
+ml-security:
+  # Check for model serialization vulnerabilities
+  model-serialization: true
+  # Check for data validation issues
+  data-validation: true
+  # Check for unsafe pickle usage
+  pickle-security: true
+  # Check for SQL injection in ML pipelines
+  sql-injection: true
+  # Check for unsafe data loading
+  unsafe-data-loading: true
+
+# Python-specific configurations
+python:
+  # Additional security queries
+  queries:
+    - python-security-extended
+    - python-crypto-algorithms
+    - python-weak-cryptographic-algorithms
+    - python-hardcoded-credentials
+    - python-sql-injection
+    - python-code-injection
+    - python-unsafe-deserialization
+  
+  # Framework-specific checks
+  frameworks:
+    fastapi:
+      - check-auth-bypass
+      - check-injection-vulnerabilities
+      - check-insecure-defaults
+    scikit-learn:
+      - check-model-persistence
+      - check-unsafe-imports
+    mlflow:
+      - check-tracking-server-security
+      - check-artifact-access-control
+
+# Advanced analysis options
+analysis:
+  # Increase timeout for complex ML code
+  timeout: 30m
+  # Use more memory for large repositories
+  memory: 4096
+  # Enable machine learning model analysis
+  ml-analysis: true
+  # Enable data flow analysis
+  dataflow: true
+  # Enable taint tracking
+  taint-tracking: true

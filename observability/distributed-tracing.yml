@@ -1,0 +1,440 @@
+# Distributed Tracing Configuration
+# OpenTelemetry-based observability for microservices
+
+# OpenTelemetry Configuration
+opentelemetry:
+  # Service configuration
+  service:
+    name: "customer-churn-predictor"
+    version: "1.0.0"
+    namespace: "production"
+    
+  # Resource attributes
+  resource:
+    attributes:
+      service.name: "customer-churn-predictor"
+      service.version: "1.0.0"
+      service.instance.id: "${HOSTNAME}"
+      deployment.environment: "${ENVIRONMENT:-production}"
+      k8s.cluster.name: "${K8S_CLUSTER_NAME}"
+      k8s.namespace.name: "${K8S_NAMESPACE}"
+      k8s.pod.name: "${K8S_POD_NAME}"
+      k8s.node.name: "${K8S_NODE_NAME}"
+      
+  # Tracing configuration
+  tracing:
+    # Trace sampling
+    sampling:
+      # Probabilistic sampling (0.0 to 1.0)
+      probability: 0.1  # Sample 10% of traces
+      # Rate limiting sampler
+      rate_limit: 100  # Max 100 traces per second
+      
+    # Span processors
+    processors:
+      - type: "batch"
+        config:
+          max_queue_size: 2048
+          schedule_delay_millis: 5000
+          export_timeout_millis: 30000
+          max_export_batch_size: 512
+          
+    # Trace exporters
+    exporters:
+      # Jaeger exporter
+      jaeger:
+        endpoint: "http://jaeger-collector:14268/api/traces"
+        timeout: 10s
+        
+      # OTLP exporter (for services like Datadog, New Relic)
+      otlp:
+        endpoint: "https://otlp.collector.example.com:4317"
+        headers:
+          api-key: "${TRACING_API_KEY}"
+        timeout: 10s
+        
+      # Console exporter (for development)
+      console:
+        enabled: false
+        
+    # Instrumentation configuration
+    instrumentation:
+      # HTTP instrumentation
+      http:
+        enabled: true
+        capture_headers: true
+        capture_request_body: false  # For security
+        capture_response_body: false  # For security
+        
+      # Database instrumentation
+      database:
+        enabled: true
+        capture_statement: true
+        sanitize_query: true  # Remove sensitive data
+        
+      # Redis instrumentation
+      redis:
+        enabled: true
+        capture_statement: true
+        
+      # ML framework instrumentation
+      ml_frameworks:
+        scikit_learn:
+          enabled: true
+          capture_model_params: true
+          capture_predictions: false  # For privacy
+        mlflow:
+          enabled: true
+          capture_experiments: true
+          capture_model_metadata: true
+          
+  # Metrics configuration
+  metrics:
+    # Metric readers
+    readers:
+      - type: "prometheus"
+        endpoint: "/metrics"
+        interval: 5000  # 5 seconds
+        
+    # Metric exporters
+    exporters:
+      prometheus:
+        endpoint: "http://prometheus:9090"
+        job_name: "customer-churn-predictor"
+        
+    # Custom metrics
+    custom_metrics:
+      - name: "prediction_requests_total"
+        type: "counter"
+        description: "Total number of prediction requests"
+        labels: ["model_version", "status"]
+        
+      - name: "prediction_duration_seconds"
+        type: "histogram"
+        description: "Time spent on predictions"
+        buckets: [0.01, 0.05, 0.1, 0.5, 1.0, 5.0]
+        labels: ["model_version"]
+        
+      - name: "model_accuracy"
+        type: "gauge"
+        description: "Current model accuracy"
+        labels: ["model_version", "dataset"]
+        
+      - name: "active_connections"
+        type: "gauge"
+        description: "Number of active connections"
+        
+  # Logging configuration
+  logging:
+    # Log level
+    level: "INFO"
+    
+    # Structured logging
+    structured: true
+    format: "json"
+    
+    # Log correlation
+    correlation:
+      trace_id: true
+      span_id: true
+      
+    # Log exporters
+    exporters:
+      console:
+        enabled: true
+      file:
+        enabled: true
+        path: "/var/log/app.log"
+        max_size: "100MB"
+        max_files: 10
+      elasticsearch:
+        enabled: true
+        endpoint: "http://elasticsearch:9200"
+        index: "app-logs"
+
+# Jaeger Configuration
+jaeger:
+  # Collector configuration
+  collector:
+    endpoint: "jaeger-collector:14268"
+    
+  # Agent configuration (for sidecar deployment)
+  agent:
+    host: "localhost"
+    port: 6831
+    
+  # UI configuration
+  ui:
+    endpoint: "http://jaeger-ui:16686"
+    
+  # Storage configuration
+  storage:
+    type: "elasticsearch"  # or "cassandra", "memory"
+    elasticsearch:
+      server_urls: ["http://elasticsearch:9200"]
+      index_prefix: "jaeger"
+      
+  # Sampling strategies
+  sampling:
+    strategies:
+      default_strategy:
+        type: "probabilistic"
+        param: 0.1
+      per_service_strategies:
+        - service: "customer-churn-predictor"
+          type: "adaptive"
+          max_traces_per_second: 100
+        - service: "ml-training-service"
+          type: "probabilistic"
+          param: 0.05  # Lower sampling for training
+
+# Service Mesh Integration (Istio)
+istio:
+  # Envoy tracing configuration
+  envoy:
+    tracing:
+      jaeger:
+        address: "jaeger-collector:9411"
+      sampling:
+        percentage: 10.0
+        
+  # Service mesh observability
+  observability:
+    metrics:
+      enabled: true
+      v2: true
+    tracing:
+      enabled: true
+      sampling: 10.0
+    access_logs:
+      enabled: true
+      format: |
+        [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%"
+        %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT%
+        %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%"
+        "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%"
+
+# Custom Instrumentation
+custom_instrumentation:
+  # Business logic tracing
+  business_spans:
+    - name: "churn_prediction"
+      description: "Complete churn prediction workflow"
+      attributes:
+        - "customer_id"
+        - "model_version"
+        - "prediction_confidence"
+        
+    - name: "feature_engineering"
+      description: "Feature engineering process"
+      attributes:
+        - "feature_count"
+        - "processing_time"
+        
+    - name: "model_inference"
+      description: "ML model inference"
+      attributes:
+        - "model_name"
+        - "model_version"
+        - "inference_time"
+        
+  # Error tracking
+  error_tracking:
+    # Capture exceptions as span events
+    capture_exceptions: true
+    # Add stack traces to error spans
+    include_stack_trace: true
+    # Sanitize sensitive data in errors
+    sanitize_errors: true
+    
+  # Performance monitoring
+  performance:
+    # Database query monitoring
+    database_queries:
+      slow_query_threshold: 1000  # 1 second
+      capture_query_plan: true
+      
+    # Cache monitoring
+    cache_operations:
+      track_hit_rate: true
+      track_operation_time: true
+      
+    # External API monitoring
+    external_apis:
+      track_response_time: true
+      track_error_rate: true
+      capture_request_headers: false  # For security
+
+# Trace Analysis and Alerting
+analysis:
+  # Trace aggregation
+  aggregation:
+    # Service dependency mapping
+    service_map:
+      enabled: true
+      update_interval: 300  # 5 minutes
+      
+    # Operation performance analysis
+    operation_analysis:
+      enabled: true
+      percentiles: [50, 90, 95, 99]
+      
+    # Error rate analysis
+    error_analysis:
+      enabled: true
+      error_threshold: 0.05  # 5%
+      
+  # Alerting rules
+  alerts:
+    # High error rate
+    - name: "high_error_rate"
+      condition: "error_rate > 0.05"
+      duration: "5m"
+      severity: "critical"
+      
+    # Slow response time
+    - name: "slow_response_time"
+      condition: "response_time_p99 > 2000"
+      duration: "5m"
+      severity: "warning"
+      
+    # High trace volume
+    - name: "high_trace_volume"
+      condition: "trace_volume > 10000"
+      duration: "1m"
+      severity: "info"
+      
+  # Anomaly detection
+  anomaly_detection:
+    enabled: true
+    algorithms:
+      - "statistical"  # Statistical anomaly detection
+      - "ml_based"     # Machine learning based
+    sensitivity: "medium"
+    
+# Privacy and Security
+privacy:
+  # Data sanitization
+  sanitization:
+    # Remove PII from traces
+    remove_pii: true
+    pii_patterns:
+      - "email"
+      - "phone_number"
+      - "ssn"
+      - "credit_card"
+      
+    # Mask sensitive data
+    mask_sensitive_data: true
+    sensitive_attributes:
+      - "customer_id"
+      - "user_token"
+      - "api_key"
+      
+  # Data retention
+  retention:
+    # Trace retention period
+    traces: "30d"  # 30 days
+    # Metrics retention period
+    metrics: "90d"  # 90 days
+    # Logs retention period
+    logs: "7d"     # 7 days
+    
+  # Access control
+  access_control:
+    # Authentication required
+    authentication: true
+    # Role-based access control
+    rbac:
+      enabled: true
+      roles:
+        - name: "viewer"
+          permissions: ["read_traces", "read_metrics"]
+        - name: "operator"
+          permissions: ["read_traces", "read_metrics", "configure_sampling"]
+        - name: "admin"
+          permissions: ["*"]
+
+# Development and Testing
+development:
+  # Local development configuration
+  local:
+    # Use console exporter for local development
+    console_exporter: true
+    # Disable remote exporters
+    remote_exporters: false
+    # Higher sampling rate for debugging
+    sampling_rate: 1.0
+    
+  # Testing configuration
+  testing:
+    # Test trace validation
+    trace_validation:
+      enabled: true
+      required_spans:
+        - "http_request"
+        - "database_query"
+        - "prediction"
+        
+    # Performance testing
+    performance_testing:
+      # Load testing with tracing
+      load_testing_sampling: 0.01  # 1% during load tests
+      # Chaos engineering integration
+      chaos_testing: true
+
+# Monitoring and Maintenance
+maintenance:
+  # Health checks
+  health_checks:
+    - name: "jaeger_collector"
+      endpoint: "http://jaeger-collector:14269/health"
+      interval: 30
+      
+    - name: "trace_ingestion_rate"
+      metric: "jaeger_collector_traces_received_total"
+      threshold: 100  # Minimum traces per minute
+      
+  # Performance monitoring
+  performance_monitoring:
+    # Collector performance
+    collector_metrics:
+      - "memory_usage"
+      - "cpu_usage"
+      - "ingestion_rate"
+      - "export_rate"
+      
+    # Storage performance
+    storage_metrics:
+      - "storage_utilization"
+      - "query_response_time"
+      - "indexing_rate"
+
+# Integration with Other Tools
+integrations:
+  # APM tools
+  apm:
+    datadog:
+      enabled: false
+      api_key: "${DATADOG_API_KEY}"
+    new_relic:
+      enabled: false
+      license_key: "${NEW_RELIC_LICENSE_KEY}"
+      
+  # Logging tools
+  logging:
+    elk_stack:
+      enabled: true
+      elasticsearch_url: "http://elasticsearch:9200"
+    fluentd:
+      enabled: true
+      endpoint: "fluentd:24224"
+      
+  # Monitoring tools
+  monitoring:
+    prometheus:
+      enabled: true
+      endpoint: "http://prometheus:9090"
+    grafana:
+      enabled: true
+      endpoint: "http://grafana:3000"
