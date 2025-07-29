@@ -1,0 +1,344 @@
+# Advanced Deployment Strategies Configuration
+# Blue-Green, Canary, and Rolling deployment configurations
+
+# Global deployment settings
+global:
+  namespace: "churn-predictor"
+  image_registry: "ghcr.io/yourorg/customer-churn-predictor"
+  deployment_timeout: 600  # 10 minutes
+  rollback_timeout: 300   # 5 minutes
+  health_check_path: "/health"
+  readiness_check_path: "/ready"
+  
+# Blue-Green Deployment Configuration
+blue_green:
+  enabled: true
+  
+  # Traffic switching configuration
+  traffic_switch:
+    # Switch all traffic at once
+    immediate: false
+    # Gradual traffic shifting (percentage per minute)
+    gradual_shift_rate: 10
+    # Maximum time for gradual shift
+    max_shift_time: 600
+    
+  # Environment configuration
+  environments:
+    blue:
+      replicas: 3
+      resources:
+        cpu: "500m"
+        memory: "1Gi"
+      env_suffix: "-blue"
+    green:
+      replicas: 3
+      resources:
+        cpu: "500m"
+        memory: "1Gi"
+      env_suffix: "-green"
+      
+  # Health check configuration
+  health_checks:
+    initial_delay: 30
+    period: 10
+    timeout: 5
+    failure_threshold: 3
+    success_threshold: 1
+    
+  # Smoke tests
+  smoke_tests:
+    enabled: true
+    test_suite: "smoke"
+    timeout: 300
+    required_success_rate: 0.95
+    
+  # Rollback configuration
+  rollback:
+    auto_rollback: true
+    rollback_triggers:
+      - "error_rate > 0.05"  # 5% error rate
+      - "response_time_p99 > 2000"  # 2 second response time
+      - "health_check_failures > 3"
+    rollback_delay: 300  # 5 minutes observation period
+
+# Canary Deployment Configuration
+canary:
+  enabled: true
+  
+  # Canary traffic configuration
+  traffic_splits:
+    - stage: "initial"
+      canary_percentage: 5
+      duration: 300  # 5 minutes
+    - stage: "ramp_up"
+      canary_percentage: 25
+      duration: 600  # 10 minutes
+    - stage: "validation"
+      canary_percentage: 50
+      duration: 900  # 15 minutes
+    - stage: "final"
+      canary_percentage: 100
+      duration: 0  # Complete switch
+      
+  # Canary analysis
+  analysis:
+    # Metrics to monitor during canary
+    metrics:
+      - name: "success_rate"
+        threshold: 0.95
+        query: "sum(rate(http_requests_total{status!~'5..'}[5m])) / sum(rate(http_requests_total[5m]))"
+      - name: "error_rate"
+        threshold: 0.05
+        query: "sum(rate(http_requests_total{status=~'5..'}[5m])) / sum(rate(http_requests_total[5m]))"
+      - name: "response_time_p99"
+        threshold: 1000  # milliseconds
+        query: "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))"
+      - name: "cpu_usage"
+        threshold: 0.8
+        query: "avg(rate(container_cpu_usage_seconds_total[5m]))"
+      - name: "memory_usage"
+        threshold: 0.85
+        query: "avg(container_memory_working_set_bytes / container_spec_memory_limit_bytes)"
+        
+    # Analysis intervals
+    interval: 60  # Check every minute
+    consecutive_successes: 3  # Required consecutive successful checks
+    
+  # A/B testing configuration
+  ab_testing:
+    enabled: true
+    # User segmentation strategies
+    segmentation:
+      - type: "header"
+        header: "X-User-Segment"
+        values: ["beta", "premium"]
+      - type: "percentage"
+        percentage: 10  # 10% of users
+      - type: "geographic"
+        regions: ["us-west", "eu-central"]
+        
+    # A/B test metrics
+    metrics:
+      - name: "conversion_rate"
+        description: "User conversion rate"
+        query: "sum(rate(user_conversions_total[5m])) / sum(rate(user_sessions_total[5m]))"
+      - name: "revenue_per_user"
+        description: "Average revenue per user"
+        query: "sum(rate(revenue_total[5m])) / sum(rate(active_users_total[5m]))"
+
+# Rolling Deployment Configuration
+rolling:
+  enabled: true
+  
+  # Rolling update strategy
+  strategy:
+    max_unavailable: 1
+    max_surge: 1
+    
+  # Update configuration
+  update:
+    # Batch size for rolling updates
+    batch_size: 1
+    # Pause between batches
+    batch_pause: 60  # seconds
+    # Maximum time for complete rollout
+    max_rollout_time: 1800  # 30 minutes
+    
+  # Health monitoring during rollout
+  monitoring:
+    # Monitor these metrics during rollout
+    metrics:
+      - "error_rate"
+      - "response_time"
+      - "cpu_usage"
+      - "memory_usage"
+    # Stop rollout if metrics exceed thresholds
+    stop_on_failure: true
+    # Resume rollout if metrics recover
+    auto_resume: true
+    resume_delay: 300  # 5 minutes
+
+# Feature Flag Integration
+feature_flags:
+  enabled: true
+  provider: "launchdarkly"  # or "flagsmith", "split", etc.
+  
+  # Feature flag configuration
+  flags:
+    - name: "new_ml_model"
+      description: "Enable new churn prediction model"
+      default_value: false
+      targeting_rules:
+        - segment: "beta_users"
+          value: true
+        - segment: "internal_users"
+          value: true
+          
+    - name: "enhanced_features"
+      description: "Enable enhanced feature engineering"
+      default_value: false
+      rollout_percentage: 25
+      
+  # Flag-based deployments
+  deployment_flags:
+    - flag: "new_api_version"
+      deployment_stage: "canary"
+    - flag: "database_migration"
+      deployment_stage: "blue_green"
+
+# Deployment Validation
+validation:
+  # Pre-deployment validation
+  pre_deployment:
+    - name: "infrastructure_check"
+      command: "kubectl get nodes"
+      success_criteria: "all nodes ready"
+    - name: "resource_availability"
+      command: "kubectl describe quota"
+      success_criteria: "sufficient resources"
+    - name: "dependency_check"
+      command: "curl -f http://database:5432/health"
+      success_criteria: "dependencies healthy"
+      
+  # Post-deployment validation
+  post_deployment:
+    - name: "health_check"
+      endpoint: "/health"
+      expected_status: 200
+      timeout: 30
+    - name: "integration_test"
+      test_suite: "integration"
+      timeout: 600
+      success_rate: 0.95
+    - name: "performance_test"
+      test_suite: "performance"
+      timeout: 900
+      max_response_time: 1000
+      
+  # Continuous validation
+  continuous:
+    enabled: true
+    interval: 300  # 5 minutes
+    metrics:
+      - "application_health"
+      - "business_metrics"
+      - "user_satisfaction"
+
+# Deployment Environments
+environments:
+  development:
+    strategy: "rolling"
+    auto_deploy: true
+    validation_level: "basic"
+    
+  staging:
+    strategy: "blue_green"
+    auto_deploy: true
+    validation_level: "comprehensive"
+    approval_required: false
+    
+  production:
+    strategy: "canary"
+    auto_deploy: false
+    validation_level: "comprehensive"
+    approval_required: true
+    approvers:
+      - "devops-team"
+      - "tech-leads"
+      
+  # Multi-region production
+  production_regions:
+    us_west:
+      strategy: "canary"
+      traffic_percentage: 40
+      deployment_order: 1
+    eu_central:
+      strategy: "canary"
+      traffic_percentage: 35
+      deployment_order: 2
+    ap_southeast:
+      strategy: "canary"
+      traffic_percentage: 25
+      deployment_order: 3
+
+# Monitoring and Alerting
+monitoring:
+  # Deployment metrics
+  metrics:
+    - name: "deployment_duration"
+      description: "Time taken for deployment"
+      alert_threshold: 1800  # 30 minutes
+    - name: "deployment_success_rate"
+      description: "Percentage of successful deployments"
+      alert_threshold: 0.95
+    - name: "rollback_frequency"
+      description: "Number of rollbacks per week"
+      alert_threshold: 3
+      
+  # Alerting configuration
+  alerts:
+    channels:
+      - "slack:#deployments"
+      - "email:devops-team@company.com"
+      - "pagerduty:deployment-issues"
+      
+    severity_levels:
+      critical:
+        - "deployment_failure"
+        - "auto_rollback_triggered"
+      warning:
+        - "deployment_slow"
+        - "metrics_degraded"
+      info:
+        - "deployment_started"
+        - "deployment_completed"
+
+# Automation Scripts
+automation:
+  scripts:
+    pre_deployment:
+      - name: "backup_database"
+        script: "./scripts/backup-db.sh"
+        timeout: 600
+      - name: "validate_config"
+        script: "./scripts/validate-config.sh"
+        timeout: 120
+        
+    post_deployment:
+      - name: "warm_cache"
+        script: "./scripts/warm-cache.sh"
+        timeout: 300
+      - name: "notify_stakeholders"
+        script: "./scripts/notify-deployment.sh"
+        timeout: 60
+        
+    rollback:
+      - name: "preserve_logs"
+        script: "./scripts/preserve-logs.sh"
+        timeout: 180
+      - name: "incident_response"
+        script: "./scripts/create-incident.sh"
+        timeout: 120
+
+# Security Configuration
+security:
+  # Image scanning
+  image_scanning:
+    enabled: true
+    vulnerability_threshold: "high"
+    block_on_failure: true
+    
+  # Runtime security
+  runtime_security:
+    enabled: true
+    policies:
+      - "no_root_access"
+      - "read_only_filesystem"
+      - "network_policies"
+      
+  # Secrets management
+  secrets:
+    provider: "kubernetes_secrets"  # or "vault", "aws_secrets_manager"
+    rotation: true
+    rotation_interval: 2592000  # 30 days
