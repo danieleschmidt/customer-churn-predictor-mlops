@@ -1,0 +1,107 @@
+# Dependabot configuration for automated dependency updates
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "04:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "@devops-team"
+      - "@senior-devs"
+    assignees:
+      - "@ml-engineers"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    ignore:
+      # Ignore patch updates for stable production dependencies
+      - dependency-name: "pandas"
+        update-types: ["version-update:semver-patch"]
+      - dependency-name: "scikit-learn"
+        update-types: ["version-update:semver-patch"]
+      - dependency-name: "numpy"
+        update-types: ["version-update:semver-patch"]
+    groups:
+      # Group ML/data science dependencies
+      ml-dependencies:
+        patterns:
+          - "pandas"
+          - "scikit-learn"
+          - "numpy"
+          - "mlflow"
+          - "joblib"
+      # Group web framework dependencies
+      web-dependencies:
+        patterns:
+          - "fastapi"
+          - "uvicorn"
+          - "pydantic"
+          - "python-multipart"
+      # Group testing dependencies
+      testing-dependencies:
+        patterns:
+          - "pytest*"
+          - "coverage"
+          - "httpx"
+          - "locust"
+          - "mutmut"
+      # Group development tools
+      dev-tools:
+        patterns:
+          - "black"
+          - "flake8"
+          - "mypy"
+          - "isort"
+          - "pre-commit"
+          - "bandit"
+          - "safety"
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "UTC"
+    reviewers:
+      - "@devops-team"
+    assignees:
+      - "@devops-team"
+    commit-message:
+      prefix: "docker"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "04:00"
+      timezone: "UTC"
+    reviewers:
+      - "@devops-team"
+    assignees:
+      - "@devops-team"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "ci"
