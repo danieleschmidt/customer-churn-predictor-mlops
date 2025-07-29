@@ -1,0 +1,55 @@
+# CODEOWNERS file for Customer Churn Predictor MLOps
+# https://docs.github.com/articles/about-code-owners/
+
+# Global owners for all files
+* @team-leads @ml-engineers
+
+# Python source code
+src/ @ml-engineers @senior-devs
+tests/ @qa-engineers @ml-engineers
+
+# Configuration and infrastructure
+*.yml @devops-team @senior-devs
+*.yaml @devops-team @senior-devs
+pyproject.toml @senior-devs @ml-engineers
+requirements*.txt @senior-devs @ml-engineers
+requirements*.lock @senior-devs @ml-engineers
+
+# Docker and deployment
+Dockerfile* @devops-team @senior-devs
+docker-compose*.yml @devops-team @senior-devs
+scripts/ @devops-team @ml-engineers
+
+# Security and compliance
+SECURITY.md @security-team @team-leads
+SECURITY_ASSESSMENT.md @security-team @team-leads
+.pre-commit-config.yaml @security-team @senior-devs
+scripts/security-scan.sh @security-team @devops-team
+
+# Documentation
+docs/ @technical-writers @ml-engineers
+*.md @technical-writers @team-leads
+README.md @team-leads @technical-writers
+
+# GitHub workflows and automation
+.github/ @devops-team @team-leads
+workflow-files-for-manual-addition/ @devops-team @team-leads
+
+# Monitoring and observability
+monitoring/ @devops-team @sre-team
+src/metrics.py @devops-team @ml-engineers
+src/monitor_performance.py @ml-engineers @sre-team
+
+# Data and ML pipelines
+data/ @data-engineers @ml-engineers
+src/train_model.py @ml-engineers @data-scientists
+src/predict_churn.py @ml-engineers @data-scientists
+src/preprocess_data*.py @data-engineers @ml-engineers
+
+# API and web components
+src/api.py @backend-devs @ml-engineers
+src/cli.py @backend-devs @ml-engineers
+
+# Critical configuration files that require multiple approvals
+pyproject.toml @team-leads @senior-devs @ml-engineers
+.github/workflows/ @devops-team @team-leads @senior-devs
