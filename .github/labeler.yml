@@ -1,0 +1,51 @@
+# Automatically label PRs based on changed files
+
+# Documentation
+documentation:
+  - changed-files:
+    - any-glob-to-any-file: ['docs/**/*', '*.md', '**/*.md']
+
+# Source code
+enhancement:
+  - changed-files:
+    - any-glob-to-any-file: ['src/**/*']
+
+# Tests
+test:
+  - changed-files:
+    - any-glob-to-any-file: ['tests/**/*', '**/test_*.py']
+
+# Configuration
+configuration:
+  - changed-files:
+    - any-glob-to-any-file: ['*.yml', '*.yaml', '*.toml', '*.json', '.env*']
+
+# CI/CD
+ci:
+  - changed-files:
+    - any-glob-to-any-file: ['.github/**/*']
+
+# Docker
+docker:
+  - changed-files:
+    - any-glob-to-any-file: ['Dockerfile*', 'docker-compose*.yml', '.dockerignore']
+
+# Dependencies
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file: ['requirements*.txt', 'pyproject.toml', 'setup.py']
+
+# Security
+security:
+  - changed-files:
+    - any-glob-to-any-file: ['SECURITY.md', '**/security*.py', 'bandit.yml']
+
+# Performance
+performance:
+  - changed-files:
+    - any-glob-to-any-file: ['**/performance/**/*', '**/benchmark*.py']
+
+# ML/AI specific
+machine-learning:
+  - changed-files:
+    - any-glob-to-any-file: ['**/model*.py', '**/train*.py', '**/predict*.py', 'mlflow*']

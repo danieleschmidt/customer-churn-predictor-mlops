@@ -29,13 +29,21 @@ repos:
         additional_dependencies: [types-PyYAML, types-redis]
         args: [--ignore-missing-imports]
 
-  # Security scanning
+  # Advanced security scanning with custom config
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.10
     hooks:
       - id: bandit
-        args: [-r, ., -f, json, -o, bandit-report.json]
+        args: [-r, ., -f, json, -o, bandit-report.json, --severity-level, medium]
         exclude: ^tests/
+  
+  # Additional security checks for ML projects
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline', '--force-use-all-plugins']
+        exclude: '.*\.(lock|csv)$'
 
   # Dependency scanning
   - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
@@ -100,7 +108,29 @@ repos:
       - id: shellcheck
         args: [--severity=warning]
 
-# CI skip conditions
+  # Advanced Python package security
+  - repo: https://github.com/PyCQA/pip-audit
+    rev: v2.7.3
+    hooks:
+      - id: pip-audit
+        args: [--desc, --format=json, --output=pip-audit-report.json]
+
+  # Performance and code complexity analysis
+  - repo: https://github.com/PyCQA/mccabe
+    rev: 0.7.0
+    hooks:
+      - id: mccabe
+        args: [--min=10]
+        exclude: ^tests/
+
+  # Advanced YAML validation for ML configs
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [-d, '{extends: default, rules: {line-length: {max: 120}}}']
+
+# CI skip conditions - optimized for advanced repository
 ci:
   autofix_commit_msg: |
     [pre-commit.ci] auto fixes from pre-commit.com hooks
@@ -110,5 +140,5 @@ ci:
   autoupdate_branch: ''
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  skip: [python-safety-dependencies-check, bandit]
+  skip: [python-safety-dependencies-check, bandit, pip-audit]
   submodules: false

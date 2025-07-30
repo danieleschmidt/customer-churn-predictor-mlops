@@ -1,0 +1,132 @@
+# Advanced alerting rules for churn prediction application
+groups:
+  - name: churn-predictor-alerts
+    rules:
+      # Application availability alerts
+      - alert: ChurnPredictorDown
+        expr: up{job="churn-predictor"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: churn-predictor
+        annotations:
+          summary: "Churn Predictor application is down"
+          description: "The churn prediction service has been down for more than 30 seconds."
+          runbook_url: "https://docs.terragon.ai/runbooks/service-down"
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="churn-predictor"}[5m])) > 2
+        for: 2m
+        labels:
+          severity: warning
+          service: churn-predictor
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s for the last 5 minutes."
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{job="churn-predictor",status=~"5.."}[5m]) / rate(http_requests_total{job="churn-predictor"}[5m]) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+          service: churn-predictor
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes."
+
+      # Model performance alerts
+      - alert: ModelAccuracyDegraded
+        expr: model_accuracy{job="churn-predictor"} < 0.80
+        for: 5m
+        labels:
+          severity: warning
+          service: churn-predictor
+          component: model
+        annotations:
+          summary: "Model accuracy has degraded"
+          description: "Current model accuracy is {{ $value | humanizePercentage }}, below threshold of 80%."
+          runbook_url: "https://docs.terragon.ai/runbooks/model-retraining"
+
+      - alert: ModelPredictionLatency
+        expr: histogram_quantile(0.95, rate(model_prediction_duration_seconds_bucket[5m])) > 1
+        for: 2m
+        labels:
+          severity: warning
+          service: churn-predictor
+          component: model
+        annotations:
+          summary: "Model prediction latency is high"
+          description: "95th percentile prediction latency is {{ $value }}s."
+
+      # Infrastructure alerts
+      - alert: HighMemoryUsage
+        expr: (container_memory_usage_bytes{name="churn-predictor-app"} / container_spec_memory_limit_bytes{name="churn-predictor-app"}) > 0.85
+        for: 2m
+        labels:
+          severity: warning
+          service: churn-predictor
+          component: infrastructure
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} of limit."
+
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{name="churn-predictor-app"}[5m]) > 0.80
+        for: 5m
+        labels:
+          severity: warning
+          service: churn-predictor
+          component: infrastructure
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | humanizePercentage }}."
+
+  - name: data-quality-alerts
+    rules:
+      # Data quality monitoring
+      - alert: DataDriftDetected
+        expr: data_drift_score > 0.7
+        for: 1m
+        labels:
+          severity: warning
+          service: churn-predictor
+          component: data
+        annotations:
+          summary: "Data drift detected"
+          description: "Data drift score is {{ $value }}, indicating significant changes in input data distribution."
+
+      - alert: MissingDataFeatures
+        expr: missing_features_percentage > 20
+        for: 1m
+        labels:
+          severity: critical
+          service: churn-predictor
+          component: data
+        annotations:
+          summary: "High percentage of missing features"
+          description: "{{ $value }}% of features are missing in recent predictions."
+
+  - name: security-alerts
+    rules:
+      # Security monitoring
+      - alert: UnauthorizedAccessAttempts
+        expr: increase(http_requests_total{job="churn-predictor",status="401"}[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          service: churn-predictor
+          component: security
+        annotations:
+          summary: "Multiple unauthorized access attempts"
+          description: "{{ $value }} unauthorized access attempts in the last 5 minutes."
+
+      - alert: AnomalousTrafficPattern
+        expr: rate(http_requests_total{job="churn-predictor"}[1m]) > 2 * rate(http_requests_total{job="churn-predictor"}[1h])
+        for: 2m
+        labels:
+          severity: warning
+          service: churn-predictor
+          component: security
+        annotations:
+          summary: "Anomalous traffic pattern detected"
+          description: "Current request rate is significantly higher than average."
