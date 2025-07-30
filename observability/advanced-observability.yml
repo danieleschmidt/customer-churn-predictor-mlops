@@ -1,0 +1,336 @@
+# Advanced Observability Configuration
+# Comprehensive monitoring, logging, tracing, and alerting for production ML systems
+
+# OpenTelemetry configuration for distributed tracing
+opentelemetry:
+  service:
+    name: "customer-churn-predictor"
+    version: "1.0.0"
+    namespace: "ml-platform"
+    
+  tracing:
+    enabled: true
+    sampler:
+      type: "probabilistic"
+      rate: 0.1  # Sample 10% of traces
+    exporters:
+      - jaeger:
+          endpoint: "http://jaeger:14268/api/traces"
+      - otlp:
+          endpoint: "http://otel-collector:4317"
+    
+  metrics:
+    enabled: true
+    interval: 15  # seconds
+    exporters:
+      - prometheus:
+          endpoint: "http://prometheus:9090"
+      - otlp:
+          endpoint: "http://otel-collector:4317"
+    
+  logs:
+    enabled: true
+    level: "INFO"
+    exporters:
+      - otlp:
+          endpoint: "http://otel-collector:4317"
+
+# Structured logging configuration
+logging:
+  version: 1
+  disable_existing_loggers: false
+  
+  formatters:
+    json:
+      class: "pythonjsonlogger.jsonlogger.JsonFormatter"
+      format: "%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d"
+    
+    structured:
+      class: "structlog.stdlib.ProcessorFormatter"
+      processor: "structlog.dev.ConsoleRenderer"
+      
+  handlers:
+    console:
+      class: "logging.StreamHandler"
+      formatter: "json"
+      stream: "ext://sys.stdout"
+      
+    file:
+      class: "logging.handlers.RotatingFileHandler"
+      formatter: "json"
+      filename: "/var/log/churn-predictor/app.log"
+      maxBytes: 10485760  # 10MB
+      backupCount: 5
+      
+    elastic:
+      class: "elasticsearch.ElasticsearchHandler"
+      formatter: "json"
+      hosts: ["elasticsearch:9200"]
+      index: "churn-predictor-logs"
+      
+  loggers:
+    "":  # root logger
+      level: "INFO"
+      handlers: ["console", "file", "elastic"]
+      
+    "uvicorn":
+      level: "INFO"
+      handlers: ["console", "file"]
+      propagate: false
+      
+    "sqlalchemy":
+      level: "WARNING"
+      handlers: ["file"]
+      propagate: false
+
+# Application Performance Monitoring (APM)
+apm:
+  # DataDog APM configuration
+  datadog:
+    enabled: false
+    api_key: "${DD_API_KEY}"
+    app_key: "${DD_APP_KEY}"
+    service_name: "churn-predictor"
+    environment: "${ENVIRONMENT}"
+    
+  # New Relic APM configuration  
+  newrelic:
+    enabled: false
+    license_key: "${NEW_RELIC_LICENSE_KEY}"
+    app_name: "Customer Churn Predictor"
+    environment: "${ENVIRONMENT}"
+    
+  # Custom APM metrics
+  custom_metrics:
+    model_inference_time:
+      type: "histogram"
+      description: "Time taken for model inference"
+      unit: "seconds"
+      buckets: [0.001, 0.01, 0.1, 1.0, 10.0]
+      
+    prediction_accuracy:
+      type: "gauge"
+      description: "Model prediction accuracy"
+      unit: "percentage"
+      
+    feature_drift:
+      type: "counter"
+      description: "Feature drift detection events"
+      unit: "count"
+
+# Infrastructure monitoring
+infrastructure:
+  # Prometheus monitoring
+  prometheus:
+    scrape_configs:
+      - job_name: "churn-predictor"
+        static_configs:
+          - targets: ["app:8000"]
+        metrics_path: "/metrics"
+        scrape_interval: 15s
+        
+      - job_name: "node-exporter"
+        static_configs:
+          - targets: ["node-exporter:9100"]
+        scrape_interval: 15s
+        
+      - job_name: "redis"
+        static_configs:
+          - targets: ["redis-exporter:9121"]
+        scrape_interval: 15s
+        
+  # Grafana dashboards
+  grafana:
+    datasources:
+      - name: "Prometheus"
+        type: "prometheus"
+        url: "http://prometheus:9090"
+        
+      - name: "Elasticsearch"
+        type: "elasticsearch"
+        url: "http://elasticsearch:9200"
+        
+    dashboards:
+      - ml_model_performance:
+          panels:
+            - prediction_latency
+            - model_accuracy_trend
+            - feature_importance_drift
+            - prediction_volume
+            
+      - system_health:
+          panels:
+            - cpu_usage
+            - memory_usage
+            - disk_io
+            - network_traffic
+            
+      - business_metrics:
+          panels:
+            - churn_prediction_rate
+            - false_positive_rate
+            - model_confidence_distribution
+
+# ML-specific observability
+ml_observability:
+  # Model performance monitoring
+  model_monitoring:
+    drift_detection:
+      enabled: true
+      algorithms: ["psi", "kl_divergence", "wasserstein"]
+      threshold: 0.1
+      window_size: 1000
+      
+    accuracy_monitoring:
+      enabled: true
+      threshold: 0.8
+      evaluation_interval: "1h"
+      alert_on_degradation: true
+      
+    feature_monitoring:
+      enabled: true
+      track_nulls: true
+      track_distributions: true
+      track_correlations: true
+      
+  # Data quality monitoring
+  data_quality:
+    schema_validation:
+      enabled: true
+      strict_mode: true
+      
+    completeness_checks:
+      enabled: true
+      threshold: 0.95
+      
+    consistency_checks:
+      enabled: true
+      cross_field_validation: true
+      
+  # Experiment tracking integration
+  experiment_tracking:
+    mlflow:
+      tracking_uri: "http://mlflow:5000"
+      auto_log: true
+      log_models: true
+      log_artifacts: true
+      
+    weights_and_biases:
+      enabled: false
+      project: "customer-churn-prediction"
+      entity: "ml-team"
+
+# Alerting configuration
+alerting:
+  # Alert manager configuration
+  alertmanager:
+    global:
+      smtp_smarthost: "smtp.company.com:587"
+      smtp_from: "alerts@company.com"
+      
+    route:
+      group_by: ["alertname", "cluster", "service"]
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: "web.hook"
+      
+    receivers:
+      - name: "web.hook"
+        webhook_configs:
+          - url: "http://slack-webhook:3000/alerts"
+            
+  # Alert rules
+  rules:
+    - name: "ml_model_alerts"
+      rules:
+        - alert: "ModelAccuracyDegraded"
+          expr: "model_accuracy < 0.8"
+          for: "5m"
+          labels:
+            severity: "critical"
+          annotations:
+            summary: "Model accuracy has dropped below threshold"
+            
+        - alert: "HighInferenceLatency"
+          expr: "inference_time_p95 > 1.0"
+          for: "2m"
+          labels:
+            severity: "warning"
+          annotations:
+            summary: "Model inference latency is high"
+            
+        - alert: "FeatureDriftDetected"
+          expr: "feature_drift_score > 0.1"
+          for: "1m"
+          labels:
+            severity: "warning"
+          annotations:
+            summary: "Feature drift detected in input data"
+            
+    - name: "infrastructure_alerts"
+      rules:
+        - alert: "HighCPUUsage"
+          expr: "cpu_usage_percent > 80"
+          for: "5m"
+          labels:
+            severity: "warning"
+          annotations:
+            summary: "High CPU usage detected"
+            
+        - alert: "HighMemoryUsage"
+          expr: "memory_usage_percent > 85"
+          for: "3m"
+          labels:
+            severity: "critical"
+          annotations:
+            summary: "High memory usage detected"
+
+# Security observability
+security_monitoring:
+  # Authentication monitoring
+  auth_monitoring:
+    failed_login_threshold: 5
+    brute_force_window: "5m"
+    suspicious_ip_tracking: true
+    
+  # API security monitoring
+  api_security:
+    rate_limit_violations: true
+    unusual_request_patterns: true
+    payload_anomaly_detection: true
+    
+  # Audit logging
+  audit_logs:
+    enabled: true
+    log_all_requests: true
+    log_sensitive_operations: true
+    retention_period: "90d"
+
+# Performance observability
+performance_monitoring:
+  # Real User Monitoring (RUM)
+  rum:
+    enabled: true
+    sample_rate: 0.1
+    track_user_sessions: true
+    track_page_loads: true
+    
+  # Synthetic monitoring
+  synthetic:
+    health_checks:
+      - endpoint: "/health"
+        interval: "30s"
+        timeout: "5s"
+        
+      - endpoint: "/predict"
+        interval: "2m"
+        timeout: "10s"
+        method: "POST"
+        payload: '{"features": [...]}' 
+        
+  # Database performance
+  database_monitoring:
+    slow_query_threshold: "1s"
+    connection_pool_monitoring: true
+    deadlock_detection: true

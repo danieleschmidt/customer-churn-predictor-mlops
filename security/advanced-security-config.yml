@@ -1,0 +1,356 @@
+# Advanced Security Configuration
+# Comprehensive security controls for production ML systems
+
+# Container security configuration
+container_security:
+  # Base image security
+  base_image:
+    registry: "gcr.io/distroless"
+    image: "python3-debian12"
+    tag_policy: "immutable"  # Use SHA digests instead of tags
+    vulnerability_scanning:
+      enabled: true
+      severity_threshold: "medium"
+      fail_on_high: true
+      
+  # Runtime security
+  runtime:
+    user: "nonroot"
+    uid: 65534
+    gid: 65534
+    read_only_root_filesystem: true
+    no_new_privileges: true
+    
+  # Resource limits (security-focused)
+  resources:
+    memory_limit: "1Gi"
+    cpu_limit: "500m"
+    ephemeral_storage_limit: "1Gi"
+    
+  # Capabilities and privileges
+  security_context:
+    run_as_non_root: true
+    read_only_root_filesystem: true
+    allow_privilege_escalation: false
+    drop_capabilities: ["ALL"]
+    add_capabilities: []  # No additional capabilities
+
+# Network security
+network_security:
+  # TLS configuration
+  tls:
+    min_version: "1.3"
+    cipher_suites:
+      - "TLS_AES_256_GCM_SHA384"
+      - "TLS_CHACHA20_POLY1305_SHA256"
+      - "TLS_AES_128_GCM_SHA256"
+    certificate_management:
+      auto_renewal: true
+      provider: "cert-manager"
+      ca_issuer: "letsencrypt-prod"
+      
+  # Network policies
+  network_policies:
+    default_deny_all: true
+    allowed_ingress:
+      - from:
+          - namespace_selector:
+              match_labels:
+                name: "frontend"
+        ports:
+          - protocol: "TCP"
+            port: 8000
+            
+    allowed_egress:
+      - to:
+          - namespace_selector:
+              match_labels:
+                name: "database"
+        ports:
+          - protocol: "TCP"
+            port: 5432
+            
+  # Service mesh security (Istio)
+  service_mesh:
+    mtls:
+      mode: "STRICT"
+    authorization_policies:
+      - name: "allow-frontend"
+        action: "ALLOW"
+        rules:
+          - from:
+              - source:
+                  principals: ["frontend-service-account"]
+            to:
+              - operation:
+                  methods: ["POST"]
+                  paths: ["/predict"]
+
+# Authentication and authorization
+auth_security:
+  # OAuth 2.0 / OIDC configuration
+  oauth:
+    provider: "auth0"  # or "keycloak", "okta"
+    client_id: "${OAUTH_CLIENT_ID}"
+    client_secret: "${OAUTH_CLIENT_SECRET}"
+    token_validation:
+      verify_signature: true
+      verify_expiration: true
+      verify_audience: true
+      leeway: 30  # seconds
+      
+  # API key management
+  api_keys:
+    encryption: "AES-256-GCM"
+    rotation_policy:
+      enabled: true
+      rotation_interval: "90d"
+      notification_period: "7d"
+    rate_limiting:
+      requests_per_minute: 1000
+      burst_limit: 100
+      
+  # JWT configuration
+  jwt:
+    algorithm: "RS256"
+    public_key_url: "${OIDC_JWKS_URL}"
+    token_ttl: 3600  # 1 hour
+    refresh_token_ttl: 604800  # 7 days
+    
+  # Role-based access control (RBAC)
+  rbac:
+    roles:
+      - name: "data_scientist"
+        permissions:
+          - "model:read"
+          - "prediction:create"
+          - "experiment:read"
+          
+      - name: "ml_engineer"
+        permissions:
+          - "model:*"
+          - "prediction:*"
+          - "experiment:*"
+          - "deployment:create"
+          
+      - name: "admin"
+        permissions: ["*"]
+
+# Data security and privacy
+data_security:
+  # Encryption at rest
+  encryption_at_rest:
+    algorithm: "AES-256-GCM"
+    key_management: "vault"  # or "aws-kms", "gcp-kms"
+    key_rotation:
+      enabled: true
+      rotation_interval: "365d"
+      
+  # Encryption in transit
+  encryption_in_transit:
+    enforce_tls: true
+    certificate_pinning: true
+    hsts_max_age: 31536000  # 1 year
+    
+  # Data classification
+  data_classification:
+    pii_detection:
+      enabled: true
+      algorithms: ["regex", "ml_based"]
+      fields_to_scan: ["all"]
+      
+    sensitive_data_masking:
+      enabled: true
+      mask_pii: true
+      mask_financial: true
+      mask_healthcare: true
+      
+  # Privacy compliance
+  privacy:
+    gdpr_compliance:
+      enabled: true
+      data_retention_period: "2555d"  # 7 years
+      right_to_be_forgotten: true
+      consent_management: true
+      
+    ccpa_compliance:
+      enabled: true
+      data_sale_opt_out: true
+      personal_data_disclosure: true
+
+# Secrets management
+secrets_management:
+  # Vault configuration
+  vault:
+    address: "https://vault.company.com"
+    auth_method: "kubernetes"
+    mount_path: "secret/ml-platform"
+    
+  # Secret rotation
+  rotation:
+    database_passwords:
+      interval: "30d"
+      notification: "7d"
+      
+    api_keys:
+      interval: "90d"
+      notification: "14d"
+      
+    certificates:
+      interval: "365d"
+      notification: "30d"
+      
+  # Secret scanning
+  scanning:
+    pre_commit_hooks: true
+    ci_cd_pipeline: true
+    repository_scanning: true
+    alert_on_detection: true
+
+# Security monitoring and incident response
+security_monitoring:
+  # SIEM integration
+  siem:
+    provider: "splunk"  # or "elastic", "sumo_logic"
+    log_forwarding:
+      security_events: true
+      authentication_events: true
+      authorization_events: true
+      data_access_events: true
+      
+  # Security metrics
+  metrics:
+    failed_authentication_attempts:
+      threshold: 10
+      window: "5m"
+      
+    unusual_data_access_patterns:
+      enabled: true
+      ml_based_detection: true
+      
+    privilege_escalation_attempts:
+      enabled: true
+      alert_immediately: true
+      
+  # Incident response
+  incident_response:
+    automated_response:
+      block_suspicious_ips: true
+      disable_compromised_accounts: true
+      quarantine_infected_containers: true
+      
+    notification_channels:
+      - slack: "#security-alerts"
+      - email: "security-team@company.com"
+      - pagerduty: "security-escalation"
+
+# Compliance and governance
+compliance:
+  # Security frameworks
+  frameworks:
+    - name: "SOC2"
+      controls:
+        - "access_controls"
+        - "data_encryption"
+        - "logging_monitoring"
+        - "incident_response"
+        
+    - name: "ISO27001"
+      controls:
+        - "information_security_policy"
+        - "risk_management"
+        - "access_control"
+        - "cryptography"
+        
+  # Audit logging
+  audit_logging:
+    enabled: true
+    log_all_api_calls: true
+    log_data_access: true
+    log_admin_actions: true
+    retention_period: "2555d"  # 7 years
+    tamper_protection: true
+    
+  # Vulnerability management
+  vulnerability_management:
+    scanning_frequency: "daily"
+    patch_management:
+      critical_patches: "24h"
+      high_patches: "7d"
+      medium_patches: "30d"
+      low_patches: "90d"
+      
+    penetration_testing:
+      frequency: "quarterly"
+      scope: "full_application"
+      third_party_testing: true
+
+# ML-specific security
+ml_security:
+  # Model security
+  model_protection:
+    model_signing:
+      enabled: true
+      algorithm: "RSA-4096"
+      
+    model_encryption:
+      enabled: true
+      algorithm: "AES-256-GCM"
+      
+    adversarial_detection:
+      enabled: true
+      threshold: 0.8
+      
+  # Data poisoning prevention
+  data_validation:
+    input_validation:
+      schema_validation: true
+      range_validation: true
+      type_validation: true
+      
+    anomaly_detection:
+      statistical_methods: true
+      ml_based_detection: true
+      threshold: 3  # standard deviations
+      
+  # Model inference security
+  inference_security:
+    input_sanitization: true
+    output_filtering: true
+    resource_limits:
+      max_request_size: "10MB"
+      timeout: "30s"
+      concurrent_requests: 100
+
+# Development security
+development_security:
+  # Secure coding practices
+  secure_coding:
+    sast_tools:
+      - "bandit"
+      - "semgrep"
+      - "codeql"
+      
+    dependency_scanning:
+      - "safety"
+      - "pip-audit"
+      - "snyk"
+      
+    container_scanning:
+      - "trivy"
+      - "clair"
+      - "anchore"
+      
+  # CI/CD security
+  cicd_security:
+    pipeline_as_code: true
+    signed_commits: true
+    branch_protection:
+      require_reviews: true
+      require_status_checks: true
+      restrict_pushes: true
+      
+    secret_scanning:
+      pre_commit: true
+      pipeline: true
+      repository: true

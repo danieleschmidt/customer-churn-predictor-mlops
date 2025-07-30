@@ -1,0 +1,180 @@
+# Performance Optimization Configuration
+# Advanced configuration for production-ready ML system optimization
+
+system_performance:
+  # Python runtime optimizations
+  python:
+    garbage_collection:
+      gc_threshold: [700, 10, 10]  # Optimized for ML workloads
+      enable_debug: false
+    memory:
+      max_heap_size: "4G"
+      memory_profiling: false
+    multiprocessing:
+      max_workers: 4  # Adjust based on CPU cores
+      chunk_size: 1000
+  
+  # FastAPI performance tuning
+  api:
+    workers: 4  # gunicorn workers
+    worker_class: "uvicorn.workers.UvicornWorker"
+    max_requests: 1000
+    max_requests_jitter: 100
+    timeout: 30
+    keepalive: 65
+    preload: true
+    
+  # Database connection optimization
+  redis:
+    max_connections: 20
+    retry_on_timeout: true
+    socket_keepalive: true
+    socket_keepalive_options:
+      TCP_KEEPINTVL: 1
+      TCP_KEEPCNT: 3
+      TCP_KEEPIDLE: 1
+
+ml_performance:
+  # Model inference optimization
+  inference:
+    batch_size: 32
+    enable_caching: true
+    cache_ttl: 3600  # 1 hour
+    parallel_predictions: true
+    memory_mapping: true
+    
+  # Training performance
+  training:
+    n_jobs: -1  # Use all available cores
+    batch_processing: true
+    early_stopping: true
+    validation_split: 0.2
+    cross_validation_folds: 5
+    
+  # Data processing optimization
+  data_processing:
+    chunk_size: 10000
+    parallel_processing: true
+    memory_efficient: true
+    compression: "gzip"
+    
+# Monitoring and profiling
+monitoring:
+  # Performance metrics collection
+  metrics:
+    enable_profiling: true
+    collect_memory_stats: true
+    collect_cpu_stats: true
+    collect_inference_time: true
+    sample_rate: 0.01  # 1% sampling
+    
+  # Resource usage thresholds
+  alerts:
+    memory_usage_threshold: 85  # percentage
+    cpu_usage_threshold: 80     # percentage
+    response_time_threshold: 500  # milliseconds
+    error_rate_threshold: 5     # percentage
+    
+# Container optimization
+container:
+  # Resource limits
+  resources:
+    memory_limit: "2G"
+    memory_request: "1G"
+    cpu_limit: "1000m"
+    cpu_request: "500m"
+    
+  # JVM-like optimizations for Python
+  environment:
+    PYTHONUNBUFFERED: "1"
+    PYTHONDONTWRITEBYTECODE: "1"
+    PYTHONHASHSEED: "random"
+    MALLOC_TRIM_THRESHOLD: "100000"
+    
+# Caching strategies
+caching:
+  # Application-level caching
+  application:
+    model_cache_size: 100  # Number of models to cache
+    prediction_cache_size: 10000  # Number of predictions to cache
+    feature_cache_ttl: 1800  # 30 minutes
+    
+  # HTTP caching
+  http:
+    static_assets_cache: 86400  # 24 hours
+    api_response_cache: 300     # 5 minutes
+    enable_etags: true
+    enable_compression: true
+
+# Load balancing and scaling
+scaling:
+  # Horizontal scaling parameters
+  horizontal:
+    min_replicas: 2
+    max_replicas: 10
+    target_cpu_utilization: 70
+    target_memory_utilization: 75
+    scale_up_cooldown: 300    # seconds
+    scale_down_cooldown: 600  # seconds
+    
+  # Vertical scaling recommendations
+  vertical:
+    cpu_scaling_factor: 1.5
+    memory_scaling_factor: 2.0
+    auto_adjust_limits: true
+
+# Network optimization
+network:
+  # HTTP/2 and connection optimization
+  http:
+    enable_http2: true
+    max_concurrent_streams: 100
+    connection_pool_size: 20
+    connection_timeout: 10
+    read_timeout: 30
+    
+  # Content delivery optimization
+  cdn:
+    enable_compression: true
+    compression_algorithms: ["gzip", "br"]
+    cache_control_headers: true
+    enable_edge_caching: true
+
+# Security performance balance
+security:
+  # Authentication optimization
+  auth:
+    token_cache_size: 1000
+    token_cache_ttl: 900  # 15 minutes
+    rate_limit_window: 60  # seconds
+    max_requests_per_window: 1000
+    
+  # Encryption performance
+  encryption:
+    cipher_suite: "ECDHE-RSA-AES256-GCM-SHA384"
+    enable_session_resumption: true
+    session_cache_size: 10000
+    session_timeout: 300
+
+# Development vs Production profiles
+profiles:
+  development:
+    debug_mode: true
+    hot_reload: true
+    detailed_logging: true
+    cache_disabled: true
+    profiling_enabled: true
+    
+  production:
+    debug_mode: false
+    hot_reload: false
+    detailed_logging: false
+    cache_enabled: true
+    profiling_enabled: false
+    optimization_level: "aggressive"
+    
+  testing:
+    parallel_tests: true
+    test_db_in_memory: true
+    mock_external_services: true
+    reduced_timeouts: true
