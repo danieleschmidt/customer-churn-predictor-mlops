@@ -1,0 +1,10 @@
+# Configuration for repository funding/sponsorship
+
+# GitHub Sponsors
+github: [terragon-labs]
+
+# Open Collective
+open_collective: customer-churn-predictor
+
+# Custom funding URLs
+custom: ["https://terragon.ai/sponsor", "https://buy-me-a-coffee.com/terragon"]
