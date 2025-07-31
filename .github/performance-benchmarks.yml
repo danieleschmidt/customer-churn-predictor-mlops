@@ -1,0 +1,258 @@
+# Performance Benchmarking Automation Configuration
+# Defines automated performance testing and benchmarking for ML pipeline
+
+# Benchmark configuration
+benchmarks:
+  # API Performance Benchmarks
+  api_benchmarks:
+    enabled: true
+    endpoints:
+      - path: "/predict"
+        method: "POST"
+        payload_file: "tests/fixtures/sample_prediction.json"
+        target_latency_ms: 200
+        target_throughput_rps: 100
+        
+      - path: "/health"
+        method: "GET"
+        target_latency_ms: 50
+        target_throughput_rps: 1000
+        
+      - path: "/metrics"
+        method: "GET"
+        target_latency_ms: 100
+        target_throughput_rps: 500
+    
+    # Load testing configuration
+    load_testing:
+      tool: "locust"
+      scenarios:
+        - name: "normal_load"
+          users: 50
+          spawn_rate: 5
+          duration: "60s"
+          
+        - name: "peak_load"
+          users: 200
+          spawn_rate: 10
+          duration: "120s"
+          
+        - name: "stress_test"
+          users: 500
+          spawn_rate: 25
+          duration: "300s"
+          
+  # ML Pipeline Benchmarks
+  ml_benchmarks:
+    enabled: true
+    
+    # Training performance
+    training_benchmarks:
+      target_training_time_minutes: 5
+      target_memory_usage_gb: 2
+      dataset_sizes:
+        - 1000    # Small dataset
+        - 10000   # Medium dataset
+        - 100000  # Large dataset
+        
+    # Prediction performance
+    prediction_benchmarks:
+      single_prediction_ms: 10
+      batch_prediction_ms_per_sample: 1
+      batch_sizes: [1, 10, 100, 1000]
+      
+    # Data processing performance
+    preprocessing_benchmarks:
+      target_processing_time_minutes: 2
+      target_memory_usage_gb: 1
+      
+  # Infrastructure Benchmarks
+  infrastructure_benchmarks:
+    enabled: true
+    
+    # Container performance
+    container_benchmarks:
+      startup_time_seconds: 30
+      memory_limit_gb: 4
+      cpu_limit_cores: 2
+      
+    # Database performance (if applicable)
+    database_benchmarks:
+      enabled: false
+      connection_time_ms: 100
+      query_time_ms: 50
+      
+# Performance regression detection
+regression_detection:
+  enabled: true
+  
+  # Comparison baseline
+  baseline:
+    # Use main branch as baseline
+    branch: "main"
+    # Or use specific commit/tag
+    # commit: "abc123"
+    # tag: "v1.0.0"
+    
+  # Regression thresholds
+  thresholds:
+    # Fail if performance degrades by more than these percentages
+    latency_regression_percent: 20
+    throughput_regression_percent: 10
+    memory_regression_percent: 25
+    cpu_regression_percent: 30
+    
+  # Statistical analysis
+  statistical_analysis:
+    enabled: true
+    confidence_level: 0.95
+    minimum_samples: 5
+    outlier_detection: true
+    
+# Continuous benchmarking
+continuous_benchmarking:
+  enabled: true
+  
+  # Schedule for regular benchmarking
+  schedule:
+    # Run nightly performance tests
+    nightly: "0 2 * * *"
+    # Run weekly comprehensive benchmarks
+    weekly: "0 3 * * 0"
+    
+  # Triggers
+  triggers:
+    # Run on PR to main branch
+    pull_request: true
+    # Run on push to main branch
+    push_to_main: true
+    # Run on release tags
+    release: true
+    
+# Performance monitoring integration
+monitoring_integration:
+  # Prometheus metrics
+  prometheus:
+    enabled: true
+    metrics_endpoint: "/metrics"
+    custom_metrics:
+      - name: "prediction_latency_histogram"
+        type: "histogram"
+        buckets: [0.001, 0.01, 0.1, 1, 10]
+        
+      - name: "training_duration_gauge"
+        type: "gauge"
+        
+      - name: "model_accuracy_gauge"
+        type: "gauge"
+        
+  # Grafana dashboards
+  grafana:
+    enabled: true
+    dashboard_configs:
+      - "monitoring/dashboards/churn-predictor-dashboard.json"
+      
+  # APM integration
+  apm:
+    tool: "elastic_apm"  # or "datadog", "newrelic"
+    enabled: false
+    
+# Reporting and notifications
+reporting:
+  # Performance reports
+  reports:
+    format: "html"  # html, json, junit
+    output_dir: "performance-reports"
+    include_charts: true
+    include_recommendations: true
+    
+  # Notification settings
+  notifications:
+    # Slack notifications for performance issues
+    slack:
+      webhook_url: "${SLACK_PERFORMANCE_WEBHOOK}"
+      channels:
+        regression: "#performance-alerts"
+        daily_summary: "#ml-metrics"
+        
+    # Email notifications
+    email:
+      recipients: ["ml-team@company.com"]
+      conditions:
+        - "regression_detected"
+        - "benchmark_failure"
+        
+# Tool configurations
+tools:
+  # Locust configuration
+  locust:
+    config_file: "tests/performance/locustfile.py"
+    host: "http://localhost:8000"
+    
+  # Apache Bench (ab) configuration
+  apache_bench:
+    enabled: false
+    concurrent_requests: 10
+    total_requests: 1000
+    
+  # Artillery configuration
+  artillery:
+    enabled: false
+    config_file: "tests/performance/artillery.yml"
+    
+  # K6 configuration
+  k6:
+    enabled: false
+    script_file: "tests/performance/k6-script.js"
+    
+# Environment configurations
+environments:
+  # Local development
+  local:
+    enabled: true
+    base_url: "http://localhost:8000"
+    
+  # Staging environment
+  staging:
+    enabled: true
+    base_url: "https://staging-api.company.com"
+    auth_required: true
+    
+  # Production environment (read-only benchmarks)
+  production:
+    enabled: false
+    base_url: "https://api.company.com"
+    read_only: true
+    
+# Data management
+data_management:
+  # Benchmark results storage
+  storage:
+    type: "file"  # file, s3, gcs
+    location: "performance-results"
+    retention_days: 90
+    
+  # Historical data analysis
+  historical_analysis:
+    enabled: true
+    trend_analysis: true
+    seasonal_adjustment: true
+    
+# Advanced features
+advanced_features:
+  # A/B testing for performance
+  ab_testing:
+    enabled: false
+    
+  # Canary performance testing
+  canary_testing:
+    enabled: false
+    traffic_split: 0.1
+    
+  # Chaos engineering
+  chaos_testing:
+    enabled: false
+    scenarios:
+      - "high_cpu_load"
+      - "memory_pressure"
+      - "network_latency"
