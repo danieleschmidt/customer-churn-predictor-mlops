@@ -1,0 +1,238 @@
+# OpenTelemetry Configuration for Customer Churn Predictor
+# This configuration enables distributed tracing, metrics, and logging
+
+# Service information
+service:
+  name: customer-churn-predictor
+  version: 1.0.0
+  namespace: production
+  instance.id: ${HOSTNAME}
+
+# Telemetry configuration
+telemetry:
+  logs:
+    level: info
+  metrics:
+    address: localhost:8888
+
+# Resource configuration
+resource:
+  attributes:
+    - key: service.name
+      value: customer-churn-predictor
+    - key: service.version
+      value: 1.0.0
+    - key: deployment.environment
+      value: ${ENVIRONMENT}
+    - key: host.name
+      value: ${HOSTNAME}
+    - key: container.name
+      value: ${CONTAINER_NAME}
+
+# Receivers configuration
+receivers:
+  # OTLP receiver for traces and metrics
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Prometheus receiver for metrics scraping
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'churn-predictor'
+          static_configs:
+            - targets: ['localhost:8000']
+          metrics_path: '/metrics'
+          scrape_interval: 30s
+
+  # Host metrics receiver
+  hostmetrics:
+    collection_interval: 60s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      disk:
+      filesystem:
+      memory:
+      network:
+      process:
+        metrics:
+          process.cpu.utilization:
+            enabled: true
+          process.memory.utilization:
+            enabled: true
+
+  # Python application metrics
+  python_metrics:
+    collection_interval: 30s
+    metrics:
+      - python.runtime.memory
+      - python.runtime.gc_collection
+      - python.runtime.thread_count
+
+# Processors configuration
+processors:
+  # Batch processor for efficient data transmission
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  # Resource processor to add/modify resource attributes
+  resource:
+    attributes:
+      - key: environment
+        value: ${ENVIRONMENT}
+        action: upsert
+      - key: region
+        value: ${AWS_REGION}
+        action: upsert
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    limit_mib: 256
+    spike_limit_mib: 64
+
+  # Sampling processor for traces
+  probabilistic_sampler:
+    sampling_percentage: 10.0
+
+  # Attributes processor for data enrichment
+  attributes:
+    actions:
+      - key: ml.model.name
+        value: churn-predictor-v1
+        action: upsert
+      - key: ml.framework
+        value: scikit-learn
+        action: upsert
+      - key: http.user_agent
+        action: delete
+
+# Exporters configuration
+exporters:
+  # Prometheus exporter for metrics
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: churn_predictor
+    const_labels:
+      service: churn-predictor
+      environment: ${ENVIRONMENT}
+
+  # Jaeger exporter for traces
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+
+  # OTLP exporter for traces and metrics
+  otlp:
+    endpoint: otel-collector:4317
+    tls:
+      insecure: true
+
+  # Logging exporter for debugging
+  logging:
+    loglevel: debug
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+  # File exporter for local development
+  file:
+    path: /tmp/otel-traces.json
+    rotation:
+      max_file_size: 100
+      max_file_age: 3600
+      max_backups: 5
+
+# Service configuration
+service:
+  pipelines:
+    # Traces pipeline
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource, probabilistic_sampler]
+      exporters: [jaeger, otlp, logging]
+
+    # Metrics pipeline
+    metrics:
+      receivers: [otlp, prometheus, hostmetrics, python_metrics]
+      processors: [memory_limiter, batch, resource, attributes]
+      exporters: [prometheus, otlp]
+
+    # Logs pipeline
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [logging, file]
+
+  # Extensions for additional functionality
+  extensions:
+    health_check:
+      endpoint: 0.0.0.0:13133
+    pprof:
+      endpoint: 0.0.0.0:1777
+    zpages:
+      endpoint: 0.0.0.0:55679
+
+# Custom configuration for ML-specific observability
+ml_observability:
+  # Model monitoring configuration
+  model_monitoring:
+    enabled: true
+    metrics:
+      - model_accuracy
+      - model_latency
+      - model_throughput
+      - feature_importance
+      - prediction_distribution
+    
+  # Data monitoring configuration
+  data_monitoring:
+    enabled: true
+    metrics:
+      - data_quality_score
+      - feature_drift
+      - data_freshness
+      - missing_values_rate
+    
+  # Business metrics monitoring
+  business_monitoring:
+    enabled: true
+    metrics:
+      - predicted_churn_rate
+      - customer_segments
+      - revenue_impact
+      - retention_metrics
+
+# Environment-specific overrides
+environments:
+  development:
+    telemetry:
+      logs:
+        level: debug
+    processors:
+      probabilistic_sampler:
+        sampling_percentage: 100.0
+    exporters:
+      file:
+        path: /app/logs/otel-traces.json
+
+  staging:
+    processors:
+      probabilistic_sampler:
+        sampling_percentage: 50.0
+
+  production:
+    processors:
+      probabilistic_sampler:
+        sampling_percentage: 10.0
+    telemetry:
+      logs:
+        level: info
