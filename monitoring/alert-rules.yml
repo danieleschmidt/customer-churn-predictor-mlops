@@ -1,0 +1,227 @@
+# Prometheus alerting rules for Customer Churn Predictor
+# These rules define when to trigger alerts based on metrics
+
+groups:
+  - name: churn_predictor_application
+    rules:
+      # High error rate alert
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+          runbook_url: "https://docs.example.com/runbooks/high-error-rate"
+
+      # Critical error rate alert
+      - alert: CriticalErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Critical error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+          runbook_url: "https://docs.example.com/runbooks/critical-error-rate"
+
+      # High response time alert
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s"
+          runbook_url: "https://docs.example.com/runbooks/high-response-time"
+
+      # Application down alert
+      - alert: ApplicationDown
+        expr: up{job="churn-predictor"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Application is down"
+          description: "Churn predictor application has been down for more than 1 minute"
+          runbook_url: "https://docs.example.com/runbooks/application-down"
+
+      # Low prediction accuracy alert
+      - alert: LowModelAccuracy
+        expr: model_accuracy < 0.8
+        for: 10m
+        labels:
+          severity: warning
+          component: model
+        annotations:
+          summary: "Model accuracy has dropped"
+          description: "Model accuracy is {{ $value | humanizePercentage }}, below 80% threshold"
+          runbook_url: "https://docs.example.com/runbooks/low-model-accuracy"
+
+      # High memory usage alert
+      - alert: HighMemoryUsage
+        expr: (process_memory_bytes / 1024 / 1024 / 1024) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}GB"
+          runbook_url: "https://docs.example.com/runbooks/high-memory-usage"
+
+      # High CPU usage alert  
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}%"
+          runbook_url: "https://docs.example.com/runbooks/high-cpu-usage"
+
+      # Prediction queue backup alert
+      - alert: PredictionQueueBackup
+        expr: prediction_queue_size > 100
+        for: 2m
+        labels:
+          severity: warning
+          component: queue
+        annotations:
+          summary: "Prediction queue backing up"
+          description: "Prediction queue has {{ $value }} items"
+          runbook_url: "https://docs.example.com/runbooks/queue-backup"
+
+  - name: churn_predictor_business
+    rules:
+      # High churn rate prediction alert
+      - alert: HighChurnRatePredicted
+        expr: avg_over_time(predicted_churn_rate[1h]) > 0.3
+        for: 30m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "High churn rate predicted"
+          description: "Average predicted churn rate is {{ $value | humanizePercentage }} over the last hour"
+          runbook_url: "https://docs.example.com/runbooks/high-churn-rate"
+
+      # Model drift alert
+      - alert: ModelDrift
+        expr: abs(model_feature_importance_change) > 0.1
+        for: 1h
+        labels:
+          severity: warning
+          component: model
+        annotations:
+          summary: "Model drift detected"
+          description: "Feature importance has changed by {{ $value }} - model may need retraining"
+          runbook_url: "https://docs.example.com/runbooks/model-drift"
+
+      # Data quality alert
+      - alert: DataQualityIssue
+        expr: data_quality_score < 0.9
+        for: 15m
+        labels:
+          severity: warning
+          component: data
+        annotations:
+          summary: "Data quality issue detected"
+          description: "Data quality score is {{ $value | humanizePercentage }}"
+          runbook_url: "https://docs.example.com/runbooks/data-quality"
+
+  - name: churn_predictor_infrastructure
+    rules:
+      # Container restart alert
+      - alert: ContainerRestarting
+        expr: rate(container_restart_count[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "Container restarting frequently"
+          description: "Container has restarted {{ $value }} times in the last 15 minutes"
+          runbook_url: "https://docs.example.com/runbooks/container-restart"
+
+      # Disk space alert
+      - alert: LowDiskSpace
+        expr: (node_filesystem_free_bytes / node_filesystem_size_bytes) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is {{ $value }}% full"
+          runbook_url: "https://docs.example.com/runbooks/low-disk-space"
+
+      # Database connection alert (future)
+      - alert: DatabaseConnectionFailed
+        expr: database_connection_status == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection failed"
+          description: "Cannot connect to database"
+          runbook_url: "https://docs.example.com/runbooks/database-connection"
+
+  - name: churn_predictor_mlops
+    rules:
+      # MLflow server down
+      - alert: MLflowServerDown
+        expr: up{job="mlflow"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: mlflow
+        annotations:
+          summary: "MLflow server is down"
+          description: "MLflow tracking server has been down for more than 2 minutes"
+          runbook_url: "https://docs.example.com/runbooks/mlflow-down"
+
+      # Model not updated recently
+      - alert: ModelNotUpdated
+        expr: (time() - model_last_updated_timestamp) > 604800  # 7 days
+        for: 0m
+        labels:
+          severity: warning
+          component: model
+        annotations:
+          summary: "Model hasn't been updated recently"
+          description: "Model was last updated {{ $value | humanizeDuration }} ago"
+          runbook_url: "https://docs.example.com/runbooks/model-not-updated"
+
+      # Training job failed
+      - alert: TrainingJobFailed
+        expr: training_job_status{status="failed"} == 1
+        for: 0m
+        labels:
+          severity: critical
+          component: training
+        annotations:
+          summary: "Model training job failed"
+          description: "Training job {{ $labels.job_id }} has failed"
+          runbook_url: "https://docs.example.com/runbooks/training-job-failed"
+
+      # Experiment tracking issues
+      - alert: MLflowLoggingFailed
+        expr: rate(mlflow_logging_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: mlflow
+        annotations:
+          summary: "MLflow logging errors"
+          description: "MLflow logging error rate is {{ $value }} errors/second"
+          runbook_url: "https://docs.example.com/runbooks/mlflow-logging-errors"

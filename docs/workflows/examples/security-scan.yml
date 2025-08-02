@@ -1,0 +1,459 @@
+# Comprehensive Security Scanning Workflow
+# Runs security scans on code, dependencies, and Docker images
+
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily security scans
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # Static Application Security Testing (SAST)
+  sast-scan:
+    name: Static Application Security Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit[toml] safety semgrep
+
+      - name: Run Bandit security scan
+        run: |
+          bandit -r src/ \
+            -f json \
+            -o bandit-report.json \
+            --severity-level medium \
+            --confidence-level medium
+        continue-on-error: true
+
+      - name: Run Semgrep security scan
+        run: |
+          semgrep --config=auto --json --output=semgrep-report.json src/
+        continue-on-error: true
+
+      - name: Upload SAST reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: sast-reports
+          path: |
+            bandit-report.json
+            semgrep-report.json
+
+      - name: Parse Bandit results
+        if: always()
+        run: |
+          python -c "
+          import json
+          import sys
+          
+          try:
+              with open('bandit-report.json', 'r') as f:
+                  report = json.load(f)
+              
+              high_issues = [issue for issue in report.get('results', []) 
+                           if issue.get('issue_severity') == 'HIGH']
+              medium_issues = [issue for issue in report.get('results', []) 
+                             if issue.get('issue_severity') == 'MEDIUM']
+              
+              print(f'Bandit Security Scan Results:')
+              print(f'  High severity issues: {len(high_issues)}')
+              print(f'  Medium severity issues: {len(medium_issues)}')
+              
+              if high_issues:
+                  print('High severity issues found:')
+                  for issue in high_issues:
+                      print(f'  - {issue.get(\"test_name\")}: {issue.get(\"issue_text\")}')
+                      print(f'    File: {issue.get(\"filename\")}:{issue.get(\"line_number\")}')
+                  sys.exit(1)
+                  
+          except FileNotFoundError:
+              print('Bandit report not found')
+          except Exception as e:
+              print(f'Error parsing Bandit report: {e}')
+          "
+
+  # Dependency vulnerability scanning
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install safety pip-audit
+
+      - name: Run Safety scan
+        run: |
+          safety check --json --output safety-report.json || true
+
+      - name: Run pip-audit scan
+        run: |
+          pip-audit --format=json --output=pip-audit-report.json || true
+
+      - name: Check for known vulnerabilities
+        run: |
+          python -c "
+          import json
+          import sys
+          
+          # Check Safety report
+          try:
+              with open('safety-report.json', 'r') as f:
+                  safety_report = json.load(f)
+              
+              vulnerabilities = safety_report.get('vulnerabilities', [])
+              if vulnerabilities:
+                  print(f'Safety found {len(vulnerabilities)} vulnerabilities:')
+                  for vuln in vulnerabilities:
+                      print(f'  - {vuln.get(\"package_name\")} {vuln.get(\"installed_version\")}')
+                      print(f'    {vuln.get(\"vulnerability_id\")}: {vuln.get(\"advisory\")}')
+                  # Don't fail on vulnerabilities for now, just warn
+                  # sys.exit(1)
+              else:
+                  print('No vulnerabilities found by Safety')
+                  
+          except FileNotFoundError:
+              print('Safety report not found')
+          except Exception as e:
+              print(f'Error parsing Safety report: {e}')
+          
+          # Check pip-audit report
+          try:
+              with open('pip-audit-report.json', 'r') as f:
+                  audit_report = json.load(f)
+              
+              if audit_report:
+                  print(f'pip-audit found {len(audit_report)} issues')
+                  for issue in audit_report:
+                      print(f'  - {issue.get(\"package\")} {issue.get(\"installed_version\")}')
+                      print(f'    {issue.get(\"id\")}: {issue.get(\"description\")}')
+              else:
+                  print('No issues found by pip-audit')
+                  
+          except FileNotFoundError:
+              print('pip-audit report not found')
+          except Exception as e:
+              print(f'Error parsing pip-audit report: {e}')
+          "
+
+      - name: Upload dependency reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: dependency-reports
+          path: |
+            safety-report.json
+            pip-audit-report.json
+
+  # Container security scanning
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t churn-predictor:security-test .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'churn-predictor:security-test'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Run Trivy for high/critical vulnerabilities
+        run: |
+          trivy image --severity HIGH,CRITICAL --format json --output trivy-high-critical.json churn-predictor:security-test || true
+
+      - name: Check for critical vulnerabilities
+        run: |
+          python -c "
+          import json
+          import sys
+          
+          try:
+              with open('trivy-high-critical.json', 'r') as f:
+                  report = json.load(f)
+              
+              critical_count = 0
+              high_count = 0
+              
+              for result in report.get('Results', []):
+                  for vuln in result.get('Vulnerabilities', []):
+                      severity = vuln.get('Severity', '')
+                      if severity == 'CRITICAL':
+                          critical_count += 1
+                      elif severity == 'HIGH':
+                          high_count += 1
+              
+              print(f'Container Security Scan Results:')
+              print(f'  Critical vulnerabilities: {critical_count}')
+              print(f'  High vulnerabilities: {high_count}')
+              
+              if critical_count > 0:
+                  print('Critical vulnerabilities found - failing build')
+                  sys.exit(1)
+              elif high_count > 5:  # Allow some high severity issues
+                  print('Too many high severity vulnerabilities - failing build')
+                  sys.exit(1)
+                  
+          except FileNotFoundError:
+              print('Trivy report not found')
+          except Exception as e:
+              print(f'Error parsing Trivy report: {e}')
+          "
+
+      - name: Upload container scan results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: container-reports
+          path: |
+            trivy-results.sarif
+            trivy-high-critical.json
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Secrets scanning
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run GitGuardian scan
+        uses: GitGuardian/ggshield-action@v1
+        env:
+          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
+          GITHUB_PULL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+
+      - name: Run TruffleHog secrets scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  # Infrastructure as Code security
+  iac-scan:
+    name: Infrastructure as Code Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name != 'schedule'  # Skip on scheduled runs
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov IaC scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: dockerfile,github_actions
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+
+      - name: Upload Checkov results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: iac-reports
+          path: checkov-results.sarif
+
+      - name: Upload Checkov scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'checkov-results.sarif'
+
+  # License compliance check
+  license-scan:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-licenses licensecheck
+
+      - name: Check licenses
+        run: |
+          pip-licenses --format json --output-file licenses.json
+          
+          python -c "
+          import json
+          
+          # Define allowed licenses
+          allowed_licenses = {
+              'MIT License', 'MIT', 'Apache Software License',
+              'Apache 2.0', 'BSD License', 'BSD', '3-Clause BSD License',
+              'Python Software Foundation License', 'ISC License',
+              'Mozilla Public License 2.0 (MPL 2.0)'
+          }
+          
+          # Define forbidden licenses
+          forbidden_licenses = {
+              'GPL v3', 'GNU General Public License v3',
+              'AGPL', 'Affero GPL', 'LGPL'
+          }
+          
+          with open('licenses.json', 'r') as f:
+              licenses = json.load(f)
+          
+          issues = []
+          for package in licenses:
+              license_name = package.get('License', 'Unknown')
+              package_name = package.get('Name', 'Unknown')
+              
+              if license_name in forbidden_licenses:
+                  issues.append(f'{package_name}: Forbidden license {license_name}')
+              elif license_name not in allowed_licenses and license_name != 'Unknown':
+                  issues.append(f'{package_name}: Review required for {license_name}')
+          
+          if issues:
+              print('License compliance issues found:')
+              for issue in issues:
+                  print(f'  - {issue}')
+              print('Please review and update allowed licenses list if needed')
+          else:
+              print('All licenses are compliant')
+          "
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: license-report
+          path: licenses.json
+
+  # Security summary report
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [sast-scan, dependency-scan, container-scan, secrets-scan, iac-scan, license-scan]
+    if: always()
+    
+    steps:
+      - name: Download all security reports
+        uses: actions/download-artifact@v3
+
+      - name: Generate security summary
+        run: |
+          echo "# Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Scan Type | Status | Critical | High | Medium |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|----------|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| SAST | ${{ needs.sast-scan.result }} | - | - | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependencies | ${{ needs.dependency-scan.result }} | - | - | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Container | ${{ needs.container-scan.result }} | - | - | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secrets | ${{ needs.secrets-scan.result }} | - | - | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| IaC | ${{ needs.iac-scan.result }} | - | - | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Licenses | ${{ needs.license-scan.result }} | - | - | - |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Actions Required" >> $GITHUB_STEP_SUMMARY
+          
+          # Check if any critical scans failed
+          if [[ "${{ needs.sast-scan.result }}" == "failure" || 
+                "${{ needs.container-scan.result }}" == "failure" ]]; then
+            echo "⚠️ **Critical security issues found** - Review and fix before merging" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No critical security issues found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment PR with security summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const scanResults = {
+              sast: '${{ needs.sast-scan.result }}',
+              dependency: '${{ needs.dependency-scan.result }}',
+              container: '${{ needs.container-scan.result }}',
+              secrets: '${{ needs.secrets-scan.result }}',
+              iac: '${{ needs.iac-scan.result }}',
+              license: '${{ needs.license-scan.result }}'
+            };
+            
+            let comment = '## 🔒 Security Scan Results\n\n';
+            comment += '| Scan | Status |\n|------|--------|\n';
+            
+            for (const [scan, result] of Object.entries(scanResults)) {
+              const emoji = result === 'success' ? '✅' : result === 'failure' ? '❌' : '⚠️';
+              comment += `| ${scan.toUpperCase()} | ${emoji} ${result} |\n`;
+            }
+            
+            const hasFailures = Object.values(scanResults).includes('failure');
+            if (hasFailures) {
+              comment += '\n⚠️ **Security issues detected** - Please review the scan results and fix any critical issues before merging.';
+            } else {
+              comment += '\n✅ All security scans passed successfully!';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
