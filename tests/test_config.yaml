@@ -1,0 +1,184 @@
+# Test Configuration for Customer Churn Predictor
+# This file contains configuration settings for different test environments
+
+# Default test settings
+default:
+  model_accuracy_threshold: 0.75
+  prediction_time_threshold: 0.1  # seconds
+  batch_prediction_threshold: 5.0  # seconds for 1000 predictions
+  api_timeout: 30  # seconds
+  test_data_size: 1000
+  random_seed: 42
+
+# Unit test configuration
+unit_tests:
+  sample_size: 100
+  mock_external_services: true
+  parallel_execution: true
+  coverage_threshold: 80
+  
+# Integration test configuration  
+integration_tests:
+  use_real_model: true
+  test_api_endpoints: true
+  test_database: false  # Not implemented yet
+  docker_timeout: 120
+  
+# Performance test configuration
+performance_tests:
+  locust:
+    host: "http://localhost:8000"
+    users: 50
+    spawn_rate: 5
+    run_time: "60s"
+    test_scenarios:
+      - light_load:
+          users: 10
+          spawn_rate: 2
+          run_time: "30s"
+      - normal_load:
+          users: 50
+          spawn_rate: 5
+          run_time: "60s"
+      - stress_test:
+          users: 200
+          spawn_rate: 10
+          run_time: "120s"
+          
+  api_benchmarks:
+    single_prediction_target: 0.05  # 50ms
+    batch_prediction_target: 0.002  # 2ms per prediction in batch
+    concurrent_users: 100
+    requests_per_user: 10
+
+# Security test configuration
+security_tests:
+  test_authentication: true
+  test_authorization: true
+  test_input_validation: true
+  test_rate_limiting: true
+  sql_injection_tests: false  # No database yet
+  xss_tests: true
+  
+# End-to-end test configuration
+e2e_tests:
+  full_pipeline: true
+  data_persistence: true
+  model_reloading: true
+  error_handling: true
+  performance_benchmarks: true
+  
+# Test data configuration
+test_data:
+  customer_profiles:
+    - name: "high_churn_risk"
+      characteristics:
+        tenure: [1, 12]
+        monthly_charges: [80, 120]
+        contract: "Month-to-month"
+        senior_citizen: 1
+    - name: "low_churn_risk"  
+      characteristics:
+        tenure: [24, 72]
+        monthly_charges: [30, 60]
+        contract: "Two year"
+        senior_citizen: 0
+    - name: "medium_churn_risk"
+      characteristics:
+        tenure: [12, 24]
+        monthly_charges: [60, 80]
+        contract: "One year"
+        
+  edge_cases:
+    - name: "minimum_values"
+      data:
+        tenure: 1
+        monthly_charges: 18.25
+        total_charges: 18.25
+    - name: "maximum_values"
+      data:
+        tenure: 72
+        monthly_charges: 118.75
+        total_charges: 8500.0
+    - name: "missing_optional_fields"
+      data:
+        tenure: 12
+        monthly_charges: 65.50
+        # Missing other fields to test defaults
+        
+# Environment-specific overrides
+environments:
+  development:
+    api_base_url: "http://localhost:8000"
+    use_mock_data: true
+    debug_mode: true
+    
+  staging:
+    api_base_url: "https://staging-api.example.com"
+    use_mock_data: false
+    debug_mode: false
+    
+  production:
+    api_base_url: "https://api.example.com"
+    use_mock_data: false
+    debug_mode: false
+    strict_validation: true
+    
+# CI/CD test configuration
+ci_cd:
+  parallel_jobs: 4
+  timeout: 1800  # 30 minutes
+  retry_attempts: 3
+  artifact_retention: 30  # days
+  
+  test_matrix:
+    python_versions: ["3.10", "3.11", "3.12"]
+    os_matrix: ["ubuntu-latest", "windows-latest", "macos-latest"]
+    
+  coverage:
+    minimum_threshold: 80
+    fail_under: 75
+    ignore_patterns:
+      - "tests/*"
+      - "scripts/*"
+      - "*/__init__.py"
+      
+# Docker test configuration
+docker_tests:
+  build_timeout: 600  # 10 minutes
+  run_timeout: 300   # 5 minutes
+  health_check_timeout: 60
+  port_mapping: "8000:8000"
+  environment_variables:
+    API_KEY: "test-api-key"
+    LOG_LEVEL: "debug"
+    
+# Load test thresholds
+load_test_thresholds:
+  response_time:
+    p50: 100  # ms
+    p95: 500  # ms
+    p99: 1000 # ms
+  error_rate: 1  # percent
+  throughput: 100  # requests per second
+  
+# Monitoring and alerting for tests
+test_monitoring:
+  enable_metrics: true
+  prometheus_integration: true
+  alert_on_failure: false  # Don't alert in test environment
+  retention_days: 7
+  
+# Test reporting
+reporting:
+  formats: ["html", "xml", "json"]
+  include_coverage: true
+  include_performance_metrics: true
+  generate_trend_analysis: true
+  
+# Cleanup configuration
+cleanup:
+  auto_cleanup: true
+  cleanup_on_failure: true
+  preserve_artifacts: ["coverage", "test-results", "logs"]
+  retention_policy: "7d"
