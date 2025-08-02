@@ -9,4 +9,4 @@ uvicorn[standard]==0.24.0
 pydantic==2.11.7
 python-multipart==0.0.20
 redis==5.0.1
-PyYAML==6.0.1
+PyYAML==6.0.2
