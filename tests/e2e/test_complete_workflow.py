@@ -7,7 +7,7 @@ import pytest
 from pathlib import Path
 
 from tests.fixtures import create_sample_customer_data
-from src.preprocess_data import preprocess_raw_data
+from src.preprocess_data import preprocess
 from src.train_model import train_churn_model
 from src.predict_churn import ChurnPredictor
 
