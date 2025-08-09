@@ -1,0 +1,380 @@
+version: '3.8'
+
+services:
+  # Load Balancer
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./config/nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - ml-service
+    restart: unless-stopped
+    networks:
+      - ml-network
+
+  # Main ML Service (Multiple instances for HA)
+  ml-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    environment:
+      - ML_ENVIRONMENT=production
+      - ML_LOG_LEVEL=INFO
+      - ML_WORKERS=4
+      - DATABASE_URL=postgresql://mluser:${DB_PASSWORD}@postgres:5432/mldb
+      - REDIS_URL=redis://redis:6379
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - ENABLE_AUTO_RETRAINING=true
+      - ENABLE_STREAMING=true
+      - ENABLE_CACHING=true
+      - ENABLE_GPU_ACCELERATION=${GPU_ENABLED:-false}
+      - PROMETHEUS_ENDPOINT=http://prometheus:9090
+      - JWT_SECRET=${JWT_SECRET}
+      - API_KEY_REQUIRED=true
+      - RATE_LIMIT_ENABLED=true
+    volumes:
+      - ml-models:/data/models
+      - ml-cache:/data/cache
+      - ml-logs:/var/log/ml-service
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    restart: unless-stopped
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ml-network
+
+  # Background Workers for Model Training and Processing
+  ml-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    command: ["python", "-m", "src.workers.background_worker"]
+    environment:
+      - ML_ENVIRONMENT=production
+      - ML_LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://mluser:${DB_PASSWORD}@postgres:5432/mldb
+      - REDIS_URL=redis://redis:6379
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - WORKER_TYPE=training
+    volumes:
+      - ml-models:/data/models
+      - ml-cache:/data/cache
+      - ml-logs:/var/log/ml-worker
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+    networks:
+      - ml-network
+
+  # Streaming Processing Service
+  ml-streaming:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    command: ["python", "-m", "src.workers.streaming_worker"]
+    environment:
+      - ML_ENVIRONMENT=production
+      - ML_LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://mluser:${DB_PASSWORD}@postgres:5432/mldb
+      - REDIS_URL=redis://redis:6379
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - WORKER_TYPE=streaming
+    ports:
+      - "8001:8001"  # WebSocket port
+    volumes:
+      - ml-models:/data/models
+      - ml-cache:/data/cache
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    networks:
+      - ml-network
+
+  # Database
+  postgres:
+    image: postgres:13-alpine
+    environment:
+      - POSTGRES_DB=mldb
+      - POSTGRES_USER=mluser
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./config/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./config/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mluser -d mldb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ml-network
+
+  # Redis Cache
+  redis:
+    image: redis:6-alpine
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+      - ./config/redis/redis.conf:/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ml-network
+
+  # Kafka for Streaming
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+    restart: unless-stopped
+    networks:
+      - ml-network
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+    networks:
+      - ml-network
+
+  # Monitoring - Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=90d'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus/rules:/etc/prometheus/rules
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    networks:
+      - ml-network
+
+  # Monitoring - Grafana
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+    networks:
+      - ml-network
+
+  # Log Aggregation - ELK Stack (Optional)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.15.0
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+      - xpack.security.enabled=false
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+    networks:
+      - ml-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.15.0
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+    networks:
+      - ml-network
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.15.0
+    volumes:
+      - ./config/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - ml-logs:/var/log/ml-service:ro
+    environment:
+      - "LS_JAVA_OPTS=-Xmx1g -Xms1g"
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+    networks:
+      - ml-network
+
+  # Health Check Service
+  health-checker:
+    image: alpine/curl
+    command: >
+      sh -c "
+      while true; do
+        curl -f http://ml-service:8000/health || exit 1;
+        curl -f http://prometheus:9090/-/healthy || exit 1;
+        curl -f http://grafana:3000/api/health || exit 1;
+        sleep 60;
+      done"
+    depends_on:
+      - ml-service
+      - prometheus
+      - grafana
+    restart: unless-stopped
+    networks:
+      - ml-network
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  kafka-data:
+    driver: local
+  zookeeper-data:
+    driver: local
+  ml-models:
+    driver: local
+  ml-cache:
+    driver: local
+  ml-logs:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  elasticsearch-data:
+    driver: local
+
+networks:
+  ml-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
