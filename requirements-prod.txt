@@ -39,7 +39,7 @@ memcached==1.59
 diskcache==5.6.3
 
 # Message Queue
-kafka-python==2.0.2
+kafka-python==2.2.15
 celery==5.3.4
 kombu==5.3.4
 
