@@ -1,0 +1,434 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      deployment_strategy:
+        description: 'Deployment strategy'
+        required: true
+        default: 'rolling'
+        type: choice
+        options:
+          - rolling
+          - blue-green
+          - canary
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/ml-service
+
+jobs:
+  # Security and Quality Gates
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: SAST with CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          queries: security-and-quality
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # Build and Test
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    needs: security-scan
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements*.txt') }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: |
+          pytest --cov=src --cov-report=xml --cov-report=html
+          
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.meta.outputs.tags }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom
+          path: sbom.spdx.json
+
+  # Infrastructure Deployment
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    environment: 
+      name: ${{ inputs.environment || 'production' }}
+      url: https://ml-api.${{ inputs.environment || 'production' }}.example.com
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ~1.5
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform Init
+        run: |
+          cd deployment/terraform
+          terraform init
+
+      - name: Terraform Plan
+        run: |
+          cd deployment/terraform
+          terraform plan \
+            -var="environment=${{ inputs.environment || 'production' }}" \
+            -var="image_tag=${{ needs.build-and-test.outputs.image-tag }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd deployment/terraform
+          terraform apply -auto-approve tfplan
+
+  # Multi-Cloud Deployment
+  deploy-kubernetes:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: [build-and-test, deploy-infrastructure]
+    strategy:
+      matrix:
+        cluster:
+          - name: aws-eks
+            provider: aws
+            region: us-west-2
+          - name: azure-aks
+            provider: azure
+            region: eastus2
+          - name: gcp-gke
+            provider: gcp
+            region: us-central1
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.12.0'
+
+      - name: Configure Kubernetes Context - AWS
+        if: matrix.cluster.provider == 'aws'
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ matrix.cluster.region }} \
+            --name ml-production-cluster
+
+      - name: Configure Kubernetes Context - Azure
+        if: matrix.cluster.provider == 'azure'
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ml-production-rg
+          cluster-name: ml-production-cluster
+
+      - name: Configure Kubernetes Context - GCP
+        if: matrix.cluster.provider == 'gcp'
+        uses: google-github-actions/get-gke-credentials@v1
+        with:
+          cluster_name: ml-production-cluster
+          location: ${{ matrix.cluster.region }}
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install ml-platform ./deployment/helm/ml-platform \
+            --namespace ml-production \
+            --create-namespace \
+            --set global.environment=${{ inputs.environment || 'production' }} \
+            --set mlService.image.tag=${{ needs.build-and-test.outputs.image-tag }} \
+            --set deployment.strategy=${{ inputs.deployment_strategy || 'rolling' }} \
+            --values ./deployment/helm/ml-platform/values-${{ inputs.environment || 'production' }}.yaml \
+            --wait \
+            --timeout=10m
+
+      - name: Verify Deployment
+        run: |
+          kubectl get pods -n ml-production
+          kubectl rollout status deployment/ml-service -n ml-production --timeout=300s
+
+  # Canary Deployment
+  deploy-canary:
+    name: Deploy Canary
+    runs-on: ubuntu-latest
+    needs: [build-and-test, deploy-infrastructure]
+    if: inputs.deployment_strategy == 'canary'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy Canary with Flagger
+        run: |
+          kubectl apply -f - <<EOF
+          apiVersion: flagger.app/v1beta1
+          kind: Canary
+          metadata:
+            name: ml-service
+            namespace: ml-production
+          spec:
+            targetRef:
+              apiVersion: apps/v1
+              kind: Deployment
+              name: ml-service
+            progressDeadlineSeconds: 60
+            service:
+              port: 8000
+              targetPort: 8000
+              gateways:
+              - ml-platform-gateway
+              hosts:
+              - ml-api.example.com
+            analysis:
+              interval: 1m
+              threshold: 5
+              maxWeight: 50
+              stepWeight: 10
+              metrics:
+              - name: request-success-rate
+                thresholdRange:
+                  min: 99
+                interval: 1m
+              - name: request-duration
+                thresholdRange:
+                  max: 500
+                interval: 30s
+              - name: error-rate
+                thresholdRange:
+                  max: 1
+                interval: 30s
+          EOF
+
+  # Post-Deployment Tests
+  post-deployment-tests:
+    name: Post-Deployment Tests
+    runs-on: ubuntu-latest
+    needs: deploy-kubernetes
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: |
+          pip install requests pytest
+
+      - name: Run smoke tests
+        run: |
+          python -m pytest tests/e2e/test_smoke.py \
+            --base-url=https://ml-api.${{ inputs.environment || 'production' }}.example.com \
+            --api-key=${{ secrets.API_KEY }}
+
+      - name: Run load tests
+        run: |
+          docker run --rm -i loadimpact/k6 run - <<EOF
+          import http from 'k6/http';
+          import { check, sleep } from 'k6';
+
+          export let options = {
+            stages: [
+              { duration: '2m', target: 10 },
+              { duration: '5m', target: 10 },
+              { duration: '2m', target: 0 },
+            ],
+          };
+
+          export default function () {
+            let response = http.get('https://ml-api.${{ inputs.environment || 'production' }}.example.com/health');
+            check(response, { 'status was 200': (r) => r.status == 200 });
+            sleep(1);
+          }
+          EOF
+
+  # Security Validation
+  security-validation:
+    name: Security Validation
+    runs-on: ubuntu-latest
+    needs: deploy-kubernetes
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Falco Security Scan
+        run: |
+          kubectl apply -f deployment/security/falco-rules.yaml
+          
+      - name: Check Pod Security Policies
+        run: |
+          kubectl auth can-i use psp/restricted --as=system:serviceaccount:ml-production:ml-service-sa
+
+      - name: Network Policy Validation
+        run: |
+          kubectl get networkpolicies -n ml-production
+
+  # Rollback on Failure
+  rollback:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: [post-deployment-tests, security-validation]
+    if: failure() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+    steps:
+      - name: Rollback Helm Release
+        run: |
+          helm rollback ml-platform -n ml-production
+
+      - name: Verify Rollback
+        run: |
+          kubectl rollout status deployment/ml-service -n ml-production --timeout=300s
+
+  # Notification
+  notify:
+    name: Notify Teams
+    runs-on: ubuntu-latest
+    needs: [post-deployment-tests, security-validation]
+    if: always()
+    steps:
+      - name: Slack Notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+
+      - name: Email Notification
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: Production Deployment Failed
+          to: ${{ vars.NOTIFICATION_EMAIL }}
+          from: ML Platform CI/CD
+          body: |
+            Production deployment failed for commit ${{ github.sha }}
+            
+            Workflow: ${{ github.workflow }}
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+            
+            Please check the logs at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

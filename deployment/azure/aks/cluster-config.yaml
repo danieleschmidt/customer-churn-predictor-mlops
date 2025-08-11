@@ -1,0 +1,202 @@
+# AKS Cluster Configuration using Azure CLI
+# Use: az aks create --resource-group ml-production-rg --name ml-production-cluster --generate-ssh-keys --node-count 3 --enable-addons monitoring,azure-keyvault-secrets-provider --enable-managed-identity
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aks-cluster-config
+  namespace: kube-system
+data:
+  cluster-name: "ml-production-cluster"
+  resource-group: "ml-production-rg"
+  location: "East US 2"
+  kubernetes-version: "1.28.3"
+  
+  # Node Pool Configuration
+  system-node-pool: |
+    {
+      "name": "systempool",
+      "count": 3,
+      "vmSize": "Standard_DS2_v2",
+      "osDiskSizeGB": 128,
+      "maxPods": 30,
+      "osType": "Linux",
+      "mode": "System",
+      "enableAutoScaling": true,
+      "minCount": 3,
+      "maxCount": 5,
+      "availabilityZones": ["1", "2", "3"],
+      "tags": {
+        "Environment": "production",
+        "NodePool": "system"
+      }
+    }
+  
+  ml-node-pool: |
+    {
+      "name": "mlpool",
+      "count": 3,
+      "vmSize": "Standard_D4s_v3",
+      "osDiskSizeGB": 256,
+      "maxPods": 30,
+      "osType": "Linux",
+      "mode": "User",
+      "enableAutoScaling": true,
+      "minCount": 3,
+      "maxCount": 20,
+      "availabilityZones": ["1", "2", "3"],
+      "nodeLabels": {
+        "workload": "ml-service",
+        "environment": "production"
+      },
+      "nodeTaints": [],
+      "tags": {
+        "Environment": "production",
+        "NodePool": "ml-workload"
+      }
+    }
+  
+  spot-node-pool: |
+    {
+      "name": "spotpool",
+      "count": 2,
+      "vmSize": "Standard_D8s_v3",
+      "osDiskSizeGB": 512,
+      "maxPods": 30,
+      "osType": "Linux",
+      "mode": "User",
+      "scaleSetPriority": "Spot",
+      "scaleSetEvictionPolicy": "Delete",
+      "spotMaxPrice": 0.5,
+      "enableAutoScaling": true,
+      "minCount": 0,
+      "maxCount": 10,
+      "availabilityZones": ["1", "2", "3"],
+      "nodeLabels": {
+        "workload": "compute-intensive",
+        "environment": "production",
+        "node-type": "spot"
+      },
+      "nodeTaints": [
+        {
+          "key": "kubernetes.azure.com/scalesetpriority",
+          "value": "spot",
+          "effect": "NoSchedule"
+        }
+      ],
+      "tags": {
+        "Environment": "production",
+        "NodePool": "spot-compute"
+      }
+    }
+
+---
+# AKS Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ml-service-network-policy
+  namespace: ml-production
+spec:
+  podSelector:
+    matchLabels:
+      app: ml-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    - podSelector:
+        matchLabels:
+          app: nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  - to:
+    - podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+
+---
+# Azure Key Vault SecretProviderClass
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: ml-service-secrets
+  namespace: ml-production
+spec:
+  provider: azure
+  parameters:
+    usePodIdentity: "false"
+    useVMManagedIdentity: "true"
+    userAssignedIdentityID: "AZURE_CLIENT_ID"
+    keyvaultName: "ml-keyvault-prod"
+    objects: |
+      array:
+        - |
+          objectName: database-url
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: redis-url
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: jwt-secret
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: api-key
+          objectType: secret
+          objectVersion: ""
+    tenantId: "AZURE_TENANT_ID"
+  secretObjects:
+  - secretName: ml-service-secrets
+    type: Opaque
+    data:
+    - objectName: database-url
+      key: DATABASE_URL
+    - objectName: redis-url
+      key: REDIS_URL
+    - objectName: jwt-secret
+      key: JWT_SECRET
+    - objectName: api-key
+      key: API_KEY

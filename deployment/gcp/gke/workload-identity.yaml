@@ -1,0 +1,178 @@
+# Google Service Accounts for Workload Identity
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: ml-service-gsa
+  namespace: default
+  annotations:
+    cnrm.cloud.google.com/project-id: PROJECT_ID
+spec:
+  displayName: "ML Service Google Service Account"
+  description: "Service account for ML service workloads"
+
+---
+# IAM Policy Binding for ML Service
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: ml-service-workload-identity-binding
+  namespace: default
+spec:
+  member: serviceAccount:PROJECT_ID.svc.id.goog[ml-production/ml-service-sa]
+  role: roles/iam.workloadIdentityUser
+  resourceRef:
+    apiVersion: iam.cnrm.cloud.google.com/v1beta1
+    kind: IAMServiceAccount
+    name: ml-service-gsa
+
+---
+# Additional IAM roles for ML Service
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: ml-service-storage-access
+  namespace: default
+spec:
+  member: serviceAccount:ml-service-gsa@PROJECT_ID.iam.gserviceaccount.com
+  role: roles/storage.objectViewer
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: PROJECT_ID
+
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: ml-service-secret-manager-access
+  namespace: default
+spec:
+  member: serviceAccount:ml-service-gsa@PROJECT_ID.iam.gserviceaccount.com
+  role: roles/secretmanager.secretAccessor
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: PROJECT_ID
+
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: ml-service-monitoring-writer
+  namespace: default
+spec:
+  member: serviceAccount:ml-service-gsa@PROJECT_ID.iam.gserviceaccount.com
+  role: roles/monitoring.metricWriter
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: PROJECT_ID
+
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: ml-service-trace-agent
+  namespace: default
+spec:
+  member: serviceAccount:ml-service-gsa@PROJECT_ID.iam.gserviceaccount.com
+  role: roles/cloudtrace.agent
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: PROJECT_ID
+
+---
+# Kubernetes Service Account with Workload Identity annotation
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ml-service-sa
+  namespace: ml-production
+  annotations:
+    iam.gke.io/gcp-service-account: ml-service-gsa@PROJECT_ID.iam.gserviceaccount.com
+  labels:
+    app.kubernetes.io/name: ml-service
+    app.kubernetes.io/component: service-account
+
+---
+# Secret Manager CSI Driver SecretProviderClass
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: ml-service-secrets
+  namespace: ml-production
+spec:
+  provider: gcp
+  parameters:
+    secrets: |
+      - resourceName: "projects/PROJECT_ID/secrets/database-url/versions/latest"
+        path: "database-url"
+      - resourceName: "projects/PROJECT_ID/secrets/redis-url/versions/latest"
+        path: "redis-url"
+      - resourceName: "projects/PROJECT_ID/secrets/jwt-secret/versions/latest"
+        path: "jwt-secret"
+      - resourceName: "projects/PROJECT_ID/secrets/api-key/versions/latest"
+        path: "api-key"
+  secretObjects:
+  - secretName: ml-service-secrets
+    type: Opaque
+    data:
+    - objectName: database-url
+      key: DATABASE_URL
+    - objectName: redis-url
+      key: REDIS_URL
+    - objectName: jwt-secret
+      key: JWT_SECRET
+    - objectName: api-key
+      key: API_KEY
+
+---
+# GKE Ingress with Google Cloud Load Balancer
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ml-service-ingress
+  namespace: ml-production
+  annotations:
+    kubernetes.io/ingress.class: gce
+    kubernetes.io/ingress.global-static-ip-name: ml-service-ip
+    networking.gke.io/managed-certificates: ml-service-ssl-cert
+    networking.gke.io/v1beta1.FrontendConfig: ml-service-frontend-config
+    cloud.google.com/armor-config: '{"ml-service-security-policy": "ml-service-armor-policy"}'
+spec:
+  rules:
+  - host: ml-api.gcp.example.com
+    http:
+      paths:
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: ml-service
+            port:
+              number: 8000
+
+---
+# Managed Certificate
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: ml-service-ssl-cert
+  namespace: ml-production
+spec:
+  domains:
+    - ml-api.gcp.example.com
+
+---
+# Frontend Config for advanced load balancer features
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: ml-service-frontend-config
+  namespace: ml-production
+spec:
+  sslPolicy: ml-service-ssl-policy
+  redirectToHttps:
+    enabled: true
+    responseCodeName: MOVED_PERMANENTLY_DEFAULT

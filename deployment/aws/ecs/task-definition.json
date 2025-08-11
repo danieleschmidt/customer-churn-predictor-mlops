@@ -1,0 +1,174 @@
+{
+  "family": "ml-service-production",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ml-service-task-role",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ml-service-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "2048",
+  "memory": "4096",
+  "containerDefinitions": [
+    {
+      "name": "ml-service",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/ml-service:latest",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "ML_ENVIRONMENT",
+          "value": "production"
+        },
+        {
+          "name": "ML_LOG_LEVEL",
+          "value": "INFO"
+        },
+        {
+          "name": "ML_WORKERS",
+          "value": "4"
+        },
+        {
+          "name": "ENABLE_AUTO_RETRAINING",
+          "value": "true"
+        },
+        {
+          "name": "ENABLE_STREAMING",
+          "value": "true"
+        },
+        {
+          "name": "ENABLE_CACHING",
+          "value": "true"
+        },
+        {
+          "name": "API_KEY_REQUIRED",
+          "value": "true"
+        },
+        {
+          "name": "RATE_LIMIT_ENABLED",
+          "value": "true"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:ml-service/database-url"
+        },
+        {
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:ml-service/redis-url"
+        },
+        {
+          "name": "KAFKA_BOOTSTRAP_SERVERS",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:ml-service/kafka-servers"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:ml-service/jwt-secret"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "ml-models",
+          "containerPath": "/data/models",
+          "readOnly": false
+        },
+        {
+          "sourceVolume": "ml-cache",
+          "containerPath": "/data/cache",
+          "readOnly": false
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/aws/ecs/ml-service-production",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8000/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "stopTimeout": 30,
+      "ulimits": [
+        {
+          "name": "nofile",
+          "softLimit": 65536,
+          "hardLimit": 65536
+        }
+      ]
+    },
+    {
+      "name": "cloudwatch-agent",
+      "image": "amazon/cloudwatch-agent:latest",
+      "essential": false,
+      "environment": [
+        {
+          "name": "CW_CONFIG_CONTENT",
+          "value": "{\"agent\":{\"metrics_collection_interval\":60,\"run_as_user\":\"cwagent\"},\"metrics\":{\"namespace\":\"ECS/ML-Service\",\"metrics_collected\":{\"cpu\":{\"measurement\":[\"cpu_usage_idle\",\"cpu_usage_iowait\",\"cpu_usage_user\",\"cpu_usage_system\"],\"metrics_collection_interval\":60},\"disk\":{\"measurement\":[\"used_percent\"],\"metrics_collection_interval\":60,\"resources\":[\"*\"]},\"diskio\":{\"measurement\":[\"io_time\"],\"metrics_collection_interval\":60,\"resources\":[\"*\"]},\"mem\":{\"measurement\":[\"mem_used_percent\"],\"metrics_collection_interval\":60},\"netstat\":{\"measurement\":[\"tcp_established\",\"tcp_time_wait\"],\"metrics_collection_interval\":60},\"swap\":{\"measurement\":[\"swap_used_percent\"],\"metrics_collection_interval\":60}}}}"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/aws/ecs/ml-service-production",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "cloudwatch-agent"
+        }
+      },
+      "memoryReservation": 50
+    }
+  ],
+  "volumes": [
+    {
+      "name": "ml-models",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-XXXXXXXXX",
+        "rootDirectory": "/models",
+        "transitEncryption": "ENABLED",
+        "transitEncryptionPort": 2049,
+        "authorizationConfig": {
+          "accessPointId": "fsap-XXXXXXXXX"
+        }
+      }
+    },
+    {
+      "name": "ml-cache",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-XXXXXXXXX",
+        "rootDirectory": "/cache",
+        "transitEncryption": "ENABLED",
+        "transitEncryptionPort": 2049,
+        "authorizationConfig": {
+          "accessPointId": "fsap-XXXXXXXXX"
+        }
+      }
+    }
+  ],
+  "placementConstraints": [],
+  "tags": [
+    {
+      "key": "Environment",
+      "value": "production"
+    },
+    {
+      "key": "Application",
+      "value": "ml-service"
+    },
+    {
+      "key": "ManagedBy",
+      "value": "terraform"
+    }
+  ]
+}

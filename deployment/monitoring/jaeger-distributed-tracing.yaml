@@ -1,0 +1,426 @@
+# Jaeger Distributed Tracing Configuration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  labels:
+    name: observability
+    istio-injection: enabled
+
+---
+# Jaeger Operator CRD
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: ml-platform-jaeger
+  namespace: observability
+  labels:
+    app: jaeger
+    app.kubernetes.io/name: jaeger
+    app.kubernetes.io/component: tracing
+spec:
+  strategy: production
+  
+  # Storage configuration using Elasticsearch
+  storage:
+    type: elasticsearch
+    elasticsearch:
+      nodeCount: 3
+      redundancyPolicy: SingleRedundancy
+      resources:
+        requests:
+          memory: "2Gi"
+          cpu: "1"
+        limits:
+          memory: "4Gi"
+          cpu: "2"
+      storage:
+        storageClassName: "fast-ssd"
+        size: "100Gi"
+      
+  # Collector configuration
+  collector:
+    maxReplicas: 10
+    resources:
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+      requests:
+        cpu: "0.5"
+        memory: "512Mi"
+    config: |
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:14250
+            http:
+              endpoint: 0.0.0.0:14268
+        jaeger:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:14250
+            thrift_http:
+              endpoint: 0.0.0.0:14268
+            thrift_compact:
+              endpoint: 0.0.0.0:6831
+            thrift_binary:
+              endpoint: 0.0.0.0:6832
+        zipkin:
+          endpoint: 0.0.0.0:9411
+      
+      processors:
+        batch:
+          send_batch_size: 1024
+          send_batch_max_size: 2048
+          timeout: 5s
+        memory_limiter:
+          limit_mib: 512
+        resource:
+          attributes:
+            - key: service.name
+              from_attribute: service_name
+              action: insert
+            - key: service.version
+              from_attribute: service_version
+              action: insert
+      
+      exporters:
+        jaeger:
+          endpoint: ml-platform-jaeger-collector:14250
+          tls:
+            insecure: true
+      
+      extensions:
+        health_check:
+          endpoint: 0.0.0.0:13133
+        pprof:
+          endpoint: 0.0.0.0:1777
+        zpages:
+          endpoint: 0.0.0.0:55679
+      
+      service:
+        extensions: [health_check, pprof, zpages]
+        pipelines:
+          traces:
+            receivers: [otlp, jaeger, zipkin]
+            processors: [memory_limiter, resource, batch]
+            exporters: [jaeger]
+
+  # Query configuration
+  query:
+    replicas: 2
+    resources:
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+    options:
+      query.max-clock-skew-adjustment: "5s"
+      query.ui-config: |
+        {
+          "archiveEnabled": true,
+          "dependencies": {
+            "menuEnabled": true
+          },
+          "menu": [
+            {
+              "label": "Documentation",
+              "url": "https://jaegertracing.io/docs/"
+            }
+          ],
+          "search": {
+            "maxLookback": {
+              "label": "2 Days",
+              "value": "2d"
+            }
+          },
+          "tracking": {
+            "gaID": "UA-000000-2",
+            "trackErrors": true
+          }
+        }
+  
+  # Agent configuration (deprecated but kept for backward compatibility)
+  agent:
+    strategy: DaemonSet
+    resources:
+      limits:
+        cpu: "200m"
+        memory: "256Mi"
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+    config: |
+      reporter:
+        grpc:
+          host-port: ml-platform-jaeger-collector:14250
+          tls:
+            enabled: false
+
+  # Ingress configuration
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - jaeger.ml.example.com
+    tls:
+      - secretName: jaeger-tls
+        hosts:
+          - jaeger.ml.example.com
+
+---
+# ServiceMonitor for Prometheus integration
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: jaeger-monitoring
+  namespace: observability
+  labels:
+    app: jaeger
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: jaeger
+  endpoints:
+  - port: admin-http
+    interval: 30s
+    path: /metrics
+
+---
+# OpenTelemetry Collector for enhanced tracing
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  mode: deployment
+  replicas: 3
+  resources:
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+  
+  config: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      jaeger:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:14250
+          thrift_http:
+            endpoint: 0.0.0.0:14268
+          thrift_compact:
+            endpoint: 0.0.0.0:6831
+          thrift_binary:
+            endpoint: 0.0.0.0:6832
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'otel-collector'
+              scrape_interval: 10s
+              static_configs:
+                - targets: ['0.0.0.0:8889']
+
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+        send_batch_max_size: 2048
+      memory_limiter:
+        limit_mib: 400
+      resource:
+        attributes:
+          - key: environment
+            value: production
+            action: insert
+          - key: service.namespace
+            from_attribute: k8s.namespace.name
+            action: insert
+          - key: service.instance.id
+            from_attribute: k8s.pod.name
+            action: insert
+      k8sattributes:
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.namespace.name
+            - k8s.node.name
+            - k8s.pod.start_time
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.ip
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+          - sources:
+              - from: connection
+
+    exporters:
+      jaeger:
+        endpoint: ml-platform-jaeger-collector.observability.svc.cluster.local:14250
+        tls:
+          insecure: true
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+      logging:
+        loglevel: debug
+      zipkin:
+        endpoint: "http://zipkin.observability.svc.cluster.local:9411/api/v2/spans"
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+      pprof:
+        endpoint: 0.0.0.0:1777
+      zpages:
+        endpoint: 0.0.0.0:55679
+
+    service:
+      extensions: [health_check, pprof, zpages]
+      pipelines:
+        traces:
+          receivers: [otlp, jaeger]
+          processors: [memory_limiter, k8sattributes, resource, batch]
+          exporters: [jaeger, logging]
+        metrics:
+          receivers: [otlp, prometheus]
+          processors: [memory_limiter, resource, batch]
+          exporters: [prometheus, logging]
+
+---
+# ML Service Instrumentation ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tracing-config
+  namespace: ml-production
+  labels:
+    app.kubernetes.io/name: tracing-config
+    app.kubernetes.io/component: configuration
+data:
+  jaeger_config.json: |
+    {
+      "service_name": "ml-service",
+      "jaeger": {
+        "local_agent": {
+          "reporting_host": "ml-platform-jaeger-agent.observability.svc.cluster.local",
+          "reporting_port": 6831
+        },
+        "collector": {
+          "endpoint": "http://ml-platform-jaeger-collector.observability.svc.cluster.local:14268/api/traces"
+        },
+        "sampler": {
+          "type": "probabilistic",
+          "param": 0.1
+        },
+        "reporter": {
+          "log_spans": false,
+          "buffer_flush_interval": 1,
+          "queue_size": 10000
+        },
+        "propagation": "jaeger",
+        "tags": {
+          "environment": "production",
+          "version": "1.0.0"
+        }
+      },
+      "opentelemetry": {
+        "trace_exporter": "jaeger",
+        "service_name": "ml-service",
+        "service_version": "1.0.0",
+        "service_namespace": "ml-production",
+        "resource_attributes": {
+          "service.name": "ml-service",
+          "service.version": "1.0.0",
+          "service.namespace": "ml-production",
+          "deployment.environment": "production"
+        },
+        "jaeger_exporter": {
+          "agent_host_name": "ml-platform-jaeger-agent.observability.svc.cluster.local",
+          "agent_port": 6831,
+          "collector_endpoint": "http://ml-platform-jaeger-collector.observability.svc.cluster.local:14268/api/traces"
+        },
+        "sampling_rules": [
+          {
+            "service": "ml-service",
+            "type": "probabilistic",
+            "rate": 0.1
+          },
+          {
+            "service": "ml-service",
+            "operation": "predict",
+            "type": "probabilistic",
+            "rate": 0.05
+          },
+          {
+            "service": "ml-service",
+            "operation": "health_check",
+            "type": "probabilistic",
+            "rate": 0.01
+          }
+        ]
+      }
+    }
+  
+  otel_config.yaml: |
+    # OpenTelemetry SDK configuration
+    sdk:
+      auto_instrumentation:
+        python:
+          enabled: true
+          packages:
+            - requests
+            - urllib3
+            - flask
+            - fastapi
+            - sqlalchemy
+            - redis
+            - kafka-python
+      
+      trace:
+        sampler:
+          type: "traceidratio"
+          arg: 0.1
+        
+        exporter:
+          jaeger:
+            endpoint: "http://ml-platform-jaeger-collector.observability.svc.cluster.local:14250"
+            insecure: true
+          
+          otlp:
+            endpoint: "http://otel-collector.observability.svc.cluster.local:4317"
+            insecure: true
+      
+      metrics:
+        exporter:
+          prometheus:
+            endpoint: "0.0.0.0:8889"
+          
+          otlp:
+            endpoint: "http://otel-collector.observability.svc.cluster.local:4317"
+            insecure: true
+      
+      logs:
+        exporter:
+          otlp:
+            endpoint: "http://otel-collector.observability.svc.cluster.local:4317"
+            insecure: true

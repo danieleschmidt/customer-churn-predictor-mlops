@@ -149,36 +149,70 @@ pre-commit: ## Run pre-commit hooks on all files
 # TESTING
 # =============================================================================
 
+# =============================================================================
+# COMPREHENSIVE TESTING FRAMEWORK
+# =============================================================================
+
 .PHONY: test
-test: ## Run all tests
-	@echo "$(CYAN)Running tests...$(RESET)"
-	pytest $(TEST_DIR) -v
+test: ## Run all tests with comprehensive framework
+	@echo "$(CYAN)Running comprehensive test suite...$(RESET)"
+	$(PYTHON) run_comprehensive_tests.py
 
 .PHONY: test-unit
 test-unit: ## Run unit tests only
 	@echo "$(CYAN)Running unit tests...$(RESET)"
-	pytest $(TEST_DIR) -m "unit" -v
+	$(PYTHON) run_comprehensive_tests.py --suites unit
 
 .PHONY: test-integration
 test-integration: ## Run integration tests only
 	@echo "$(CYAN)Running integration tests...$(RESET)"
-	pytest $(TEST_DIR) -m "integration" -v
+	$(PYTHON) run_comprehensive_tests.py --suites integration
 
 .PHONY: test-performance
 test-performance: ## Run performance tests
 	@echo "$(CYAN)Running performance tests...$(RESET)"
-	pytest $(TEST_DIR) -m "performance" -v
+	$(PYTHON) run_comprehensive_tests.py --suites performance
 
 .PHONY: test-security
 test-security: ## Run security tests
 	@echo "$(CYAN)Running security tests...$(RESET)"
-	pytest $(TEST_DIR) -m "security" -v
+	$(PYTHON) run_comprehensive_tests.py --suites security
+
+.PHONY: test-property
+test-property: ## Run property-based tests
+	@echo "$(CYAN)Running property-based tests...$(RESET)"
+	$(PYTHON) run_comprehensive_tests.py --suites property
+
+.PHONY: test-chaos
+test-chaos: ## Run chaos engineering tests
+	@echo "$(CYAN)Running chaos engineering tests...$(RESET)"
+	$(PYTHON) run_comprehensive_tests.py --suites chaos
+
+.PHONY: test-quality-gates
+test-quality-gates: ## Run quality gates
+	@echo "$(CYAN)Running quality gates...$(RESET)"
+	$(PYTHON) run_comprehensive_tests.py --suites quality_gates
+
+.PHONY: test-sequential
+test-sequential: ## Run all tests sequentially
+	@echo "$(CYAN)Running tests sequentially...$(RESET)"
+	$(PYTHON) run_comprehensive_tests.py --no-parallel
+
+.PHONY: test-fast
+test-fast: ## Run fast test subset
+	@echo "$(CYAN)Running fast test subset...$(RESET)"
+	$(PYTHON) run_comprehensive_tests.py --suites unit security
 
 .PHONY: coverage
-coverage: ## Run tests with coverage report
-	@echo "$(CYAN)Running tests with coverage...$(RESET)"
-	pytest $(TEST_DIR) --cov=$(SRC_DIR) --cov-report=html --cov-report=term-missing
-	@echo "$(GREEN)Coverage report generated in htmlcov/$(RESET)"
+coverage: ## Run tests with coverage analysis
+	@echo "$(CYAN)Running comprehensive coverage analysis...$(RESET)"
+	$(PYTHON) -c "from tests.quality_gates.coverage_analyzer import AdvancedCoverageAnalyzer; analyzer = AdvancedCoverageAnalyzer(); result = analyzer.run_comprehensive_analysis(); print(f'Coverage: {result.overall_coverage.line_coverage:.1f}%')"
+	@echo "$(GREEN)Coverage reports generated in coverage_reports/$(RESET)"
+
+.PHONY: test-components
+test-components: ## Test new system components
+	@echo "$(CYAN)Testing new system components...$(RESET)"
+	pytest tests/test_comprehensive_new_components.py -v --tb=short
 
 .PHONY: mutation-test
 mutation-test: ## Run mutation testing

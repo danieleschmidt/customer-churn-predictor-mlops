@@ -1,0 +1,251 @@
+# Global configuration
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+  environment: production
+
+# Application configuration
+app:
+  name: ml-service
+  version: "1.0.0"
+  
+# ML Service configuration
+mlService:
+  enabled: true
+  image:
+    repository: ml-service
+    tag: "latest"
+    pullPolicy: Always
+  
+  replicaCount: 3
+  
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+    
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/rate-limit: "100"
+      nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    hosts:
+      - host: ml-api.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: ml-service-tls
+        hosts:
+          - ml-api.example.com
+  
+  resources:
+    limits:
+      cpu: 2
+      memory: 4Gi
+    requests:
+      cpu: 1
+      memory: 2Gi
+      
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+    
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - ml-service
+            topologyKey: kubernetes.io/hostname
+            
+  env:
+    ML_ENVIRONMENT: production
+    ML_LOG_LEVEL: INFO
+    ML_WORKERS: "4"
+    ENABLE_AUTO_RETRAINING: "true"
+    ENABLE_STREAMING: "true"
+    ENABLE_CACHING: "true"
+    ENABLE_GPU_ACCELERATION: "false"
+    API_KEY_REQUIRED: "true"
+    RATE_LIMIT_ENABLED: "true"
+    
+  persistence:
+    models:
+      enabled: true
+      size: 50Gi
+      storageClass: ""
+      accessMode: ReadWriteMany
+    cache:
+      enabled: true
+      size: 5Gi
+      storageClass: ""
+
+# Load Balancer configuration
+nginx:
+  enabled: true
+  image:
+    repository: nginx
+    tag: "alpine"
+    pullPolicy: IfNotPresent
+    
+  service:
+    type: LoadBalancer
+    ports:
+      http: 80
+      https: 443
+      
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Database configuration
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: ""  # Set via secret
+    username: mluser
+    password: ""          # Set via secret
+    database: mldb
+  architecture: standalone
+  primary:
+    persistence:
+      enabled: true
+      size: 100Gi
+    resources:
+      limits:
+        cpu: 2
+        memory: 4Gi
+      requests:
+        cpu: 1
+        memory: 2Gi
+
+# Cache configuration
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: 20Gi
+    resources:
+      limits:
+        cpu: 1
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+
+# Streaming configuration
+kafka:
+  enabled: true
+  replicaCount: 1
+  persistence:
+    enabled: true
+    size: 50Gi
+  resources:
+    limits:
+      cpu: 2
+      memory: 4Gi
+    requests:
+      cpu: 1
+      memory: 2Gi
+  zookeeper:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 10Gi
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  
+  prometheus:
+    enabled: true
+    server:
+      persistentVolume:
+        enabled: true
+        size: 100Gi
+      resources:
+        limits:
+          cpu: 1
+          memory: 2Gi
+        requests:
+          cpu: 500m
+          memory: 1Gi
+    
+  grafana:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+    ingress:
+      enabled: true
+      hosts:
+        - grafana.ml.example.com
+      tls:
+        - secretName: monitoring-tls
+          hosts:
+            - grafana.ml.example.com
+
+# Security configuration
+security:
+  networkPolicies:
+    enabled: true
+  podSecurityPolicy:
+    enabled: true
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+    name: ""
+
+# Backup configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: 30  # days
+  
+# Multi-region configuration
+multiRegion:
+  enabled: false
+  regions:
+    - name: us-east-1
+      primary: true
+    - name: us-west-2
+      primary: false
+
+# Cost optimization
+costOptimization:
+  enabled: true
+  spotInstances:
+    enabled: false
+  rightsizing:
+    enabled: true
