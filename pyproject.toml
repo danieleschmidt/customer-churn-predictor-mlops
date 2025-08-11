@@ -156,8 +156,6 @@ addopts = [
     "--durations=10",
     "--html=test_reports/report.html",
     "--self-contained-html",
-    "--json-report",
-    "--json-report-file=test_reports/report.json",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
