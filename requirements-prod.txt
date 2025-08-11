@@ -1,3 +1,4 @@
+```
 # Production ML System Requirements
 
 # Core Framework
@@ -109,7 +110,7 @@ plotly==6.2.0
 
 # Cloud Storage
 boto3==1.40.6
-azure-storage-blob==12.19.0
+azure-storage-blob==12.26.0
 google-cloud-storage==2.10.0
 
 # Container and Deployment
@@ -159,3 +160,4 @@ sphinx-rtd-theme==3.0.2
 
 # Production WSGI Server
 waitress==2.1.2
+```
