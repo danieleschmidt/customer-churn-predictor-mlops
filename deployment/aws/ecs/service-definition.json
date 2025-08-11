@@ -1,0 +1,70 @@
+{
+  "serviceName": "ml-service-production",
+  "cluster": "ml-production-cluster",
+  "taskDefinition": "ml-service-production",
+  "desiredCount": 3,
+  "launchType": "FARGATE",
+  "platformVersion": "1.4.0",
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": [
+        "subnet-XXXXXXXXX",
+        "subnet-YYYYYYYYY",
+        "subnet-ZZZZZZZZZ"
+      ],
+      "securityGroups": [
+        "sg-ml-service-XXXXXXXXX"
+      ],
+      "assignPublicIp": "DISABLED"
+    }
+  },
+  "loadBalancers": [
+    {
+      "targetGroupArn": "arn:aws:elasticloadbalancing:REGION:ACCOUNT_ID:targetgroup/ml-service-prod/XXXXXXXXXX",
+      "containerName": "ml-service",
+      "containerPort": 8000
+    }
+  ],
+  "serviceRegistries": [
+    {
+      "registryArn": "arn:aws:servicediscovery:REGION:ACCOUNT_ID:service/srv-XXXXXXXXX",
+      "containerName": "ml-service",
+      "containerPort": 8000
+    }
+  ],
+  "healthCheckGracePeriodSeconds": 120,
+  "deploymentConfiguration": {
+    "maximumPercent": 200,
+    "minimumHealthyPercent": 50,
+    "deploymentCircuitBreaker": {
+      "enable": true,
+      "rollback": true
+    }
+  },
+  "serviceTags": [
+    {
+      "key": "Environment",
+      "value": "production"
+    },
+    {
+      "key": "Application",
+      "value": "ml-service"
+    },
+    {
+      "key": "ManagedBy",
+      "value": "terraform"
+    }
+  ],
+  "enableExecuteCommand": true,
+  "capacityProviderStrategy": [
+    {
+      "capacityProvider": "FARGATE",
+      "weight": 80,
+      "base": 2
+    },
+    {
+      "capacityProvider": "FARGATE_SPOT",
+      "weight": 20
+    }
+  ]
+}

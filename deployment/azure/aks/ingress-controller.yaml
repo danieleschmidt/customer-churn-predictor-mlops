@@ -1,0 +1,140 @@
+# Application Gateway Ingress Controller for AKS
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: application-gateway-config
+  namespace: kube-system
+data:
+  gateway-name: "ml-production-appgw"
+  resource-group: "ml-production-rg"
+  subscription-id: "AZURE_SUBSCRIPTION_ID"
+  
+---
+# AGIC Helm values configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agic-helm-values
+  namespace: kube-system
+data:
+  values.yaml: |
+    appgw:
+      applicationGatewayID: "/subscriptions/AZURE_SUBSCRIPTION_ID/resourceGroups/ml-production-rg/providers/Microsoft.Network/applicationGateways/ml-production-appgw"
+      
+    armAuth:
+      type: workloadIdentity
+      identityResourceID: "/subscriptions/AZURE_SUBSCRIPTION_ID/resourcegroups/ml-production-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/agic-identity"
+      identityClientID: "AGIC_CLIENT_ID"
+      
+    rbac:
+      enabled: true
+      
+    verbosityLevel: 3
+    
+    kubernetes:
+      watchNamespace: ""
+      
+    aksClusterConfiguration:
+      apiServerAddress: "ml-production-cluster-dns-XXXXXX.hcp.eastus2.azmk8s.io"
+
+---
+# Application Gateway Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ml-service-ingress
+  namespace: ml-production
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    appgw.ingress.kubernetes.io/connection-draining: "true"
+    appgw.ingress.kubernetes.io/connection-draining-timeout: "30"
+    appgw.ingress.kubernetes.io/cookie-based-affinity: "false"
+    appgw.ingress.kubernetes.io/request-timeout: "30"
+    appgw.ingress.kubernetes.io/backend-path-prefix: "/"
+    appgw.ingress.kubernetes.io/backend-hostname: "ml-service"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    appgw.ingress.kubernetes.io/appgw-ssl-certificate: "ml-service-tls"
+spec:
+  tls:
+  - hosts:
+    - ml-api.azure.example.com
+    secretName: ml-service-tls
+  rules:
+  - host: ml-api.azure.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ml-service
+            port:
+              number: 8000
+
+---
+# Azure Load Balancer Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-service-lb
+  namespace: ml-production
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+    service.beta.kubernetes.io/azure-pip-name: "ml-service-pip"
+    service.beta.kubernetes.io/azure-dns-label-name: "ml-service-prod"
+    service.beta.kubernetes.io/azure-load-balancer-tcp-idle-timeout: "4"
+    service.beta.kubernetes.io/azure-load-balancer-resource-group: "ml-production-rg"
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 8000
+    protocol: TCP
+  selector:
+    app: ml-service
+  loadBalancerSourceRanges:
+  - "0.0.0.0/0"  # Restrict in production
+
+---
+# Azure Monitor for Containers
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: container-azm-ms-agentconfig
+  namespace: kube-system
+data:
+  schema-version: v1
+  config-version: ver1
+  log-data-collection-settings: |-
+    [log_collection_settings]
+      [log_collection_settings.stdout]
+        enabled = true
+        exclude_namespaces = ["kube-system"]
+      [log_collection_settings.stderr]
+        enabled = true
+        exclude_namespaces = ["kube-system"]
+      [log_collection_settings.env_var]
+        enabled = true
+      [log_collection_settings.enrich_container_logs]
+        enabled = true
+  prometheus-data-collection-settings: |-
+    [prometheus_data_collection_settings.cluster]
+      interval = "1m"
+      fieldpass = ["*"]
+      monitor_kubernetes_pods = true
+      
+    [prometheus_data_collection_settings.node]
+      interval = "1m"
+      fieldpass = ["*"]
+      urls = ["http://$NODE_IP:9100/metrics"]
+      
+    [[prometheus_data_collection_settings.kubernetes_services]]
+      monitor_kubernetes_pods = true
+      service_selector = "app=ml-service"
+      namespaces = ["ml-production"]

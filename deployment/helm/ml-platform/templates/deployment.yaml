@@ -1,0 +1,133 @@
+{{- if .Values.mlService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ml-platform.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ml-platform.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.mlService.autoscaling.enabled }}
+  replicas: {{ .Values.mlService.replicaCount }}
+  {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "ml-platform.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+      labels:
+        {{- include "ml-platform.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ml-platform.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - ALL
+          image: "{{ .Values.global.imageRegistry | default .Values.mlService.image.repository }}:{{ .Values.mlService.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.mlService.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.mlService.service.targetPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          env:
+            {{- range $key, $value := .Values.mlService.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- if .Values.postgresql.enabled }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ml-platform.fullname" . }}-secrets
+                  key: DATABASE_URL
+            {{- end }}
+            {{- if .Values.redis.enabled }}
+            - name: REDIS_URL
+              value: "redis://{{ include "ml-platform.fullname" . }}-redis-master:6379"
+            {{- end }}
+            {{- if .Values.kafka.enabled }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "{{ include "ml-platform.fullname" . }}-kafka:9092"
+            {{- end }}
+          volumeMounts:
+            {{- if .Values.mlService.persistence.models.enabled }}
+            - name: ml-models
+              mountPath: /data/models
+            {{- end }}
+            {{- if .Values.mlService.persistence.cache.enabled }}
+            - name: ml-cache
+              mountPath: /data/cache
+            {{- end }}
+            - name: ml-logs
+              mountPath: /var/log/ml-service
+          resources:
+            {{- toYaml .Values.mlService.resources | nindent 12 }}
+      volumes:
+        {{- if .Values.mlService.persistence.models.enabled }}
+        - name: ml-models
+          persistentVolumeClaim:
+            claimName: {{ include "ml-platform.fullname" . }}-models
+        {{- end }}
+        {{- if .Values.mlService.persistence.cache.enabled }}
+        - name: ml-cache
+          persistentVolumeClaim:
+            claimName: {{ include "ml-platform.fullname" . }}-cache
+        {{- else }}
+        - name: ml-cache
+          emptyDir:
+            sizeLimit: {{ .Values.mlService.persistence.cache.size }}
+        {{- end }}
+        - name: ml-logs
+          emptyDir:
+            sizeLimit: 1Gi
+      {{- with .Values.mlService.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.mlService.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.mlService.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

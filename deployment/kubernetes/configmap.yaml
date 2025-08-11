@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-service-config
+  namespace: ml-production
+  labels:
+    app.kubernetes.io/name: ml-service
+    app.kubernetes.io/component: config
+data:
+  ML_ENVIRONMENT: "production"
+  ML_LOG_LEVEL: "INFO"
+  ML_WORKERS: "4"
+  ENABLE_AUTO_RETRAINING: "true"
+  ENABLE_STREAMING: "true"
+  ENABLE_CACHING: "true"
+  ENABLE_GPU_ACCELERATION: "false"
+  API_KEY_REQUIRED: "true"
+  RATE_LIMIT_ENABLED: "true"
+  DATABASE_URL: "postgresql://mluser:$(DB_PASSWORD)@postgres-service:5432/mldb"
+  REDIS_URL: "redis://redis-service:6379"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-service:9092"
+  PROMETHEUS_ENDPOINT: "http://prometheus-service:9090"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: ml-production
+  labels:
+    app.kubernetes.io/name: nginx
+    app.kubernetes.io/component: loadbalancer
+data:
+  nginx.conf: |
+    upstream ml_service {
+        least_conn;
+        server ml-service:8000 max_fails=3 fail_timeout=30s;
+    }
+    
+    server {
+        listen 80;
+        server_name _;
+        return 301 https://$server_name$request_uri;
+    }
+    
+    server {
+        listen 443 ssl http2;
+        server_name _;
+        
+        ssl_certificate /etc/nginx/ssl/tls.crt;
+        ssl_certificate_key /etc/nginx/ssl/tls.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers off;
+        ssl_session_cache shared:SSL:10m;
+        
+        # Security headers
+        add_header X-Frame-Options DENY;
+        add_header X-Content-Type-Options nosniff;
+        add_header X-XSS-Protection "1; mode=block";
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
+        
+        # Rate limiting
+        limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+        limit_req zone=api burst=20 nodelay;
+        
+        location / {
+            proxy_pass http://ml_service;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_connect_timeout 30s;
+            proxy_send_timeout 30s;
+            proxy_read_timeout 30s;
+        }
+        
+        location /health {
+            proxy_pass http://ml_service/health;
+            access_log off;
+        }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: ml-production
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    rule_files:
+      - "/etc/prometheus/rules/*.yml"
+    
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - alertmanager-service:9093
+    
+    scrape_configs:
+      - job_name: 'ml-service'
+        static_configs:
+          - targets: ['ml-service:8000']
+        metrics_path: '/metrics'
+        scrape_interval: 10s
+        
+      - job_name: 'postgres'
+        static_configs:
+          - targets: ['postgres-exporter:9187']
+        
+      - job_name: 'redis'
+        static_configs:
+          - targets: ['redis-exporter:9121']
+        
+      - job_name: 'kafka'
+        static_configs:
+          - targets: ['kafka-exporter:9308']
+        
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true

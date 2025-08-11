@@ -1,0 +1,174 @@
+# ML Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-service
+  namespace: ml-production
+  labels:
+    app.kubernetes.io/name: ml-service
+    app.kubernetes.io/component: api
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8000
+    targetPort: http
+    protocol: TCP
+  selector:
+    app: ml-service
+    component: api
+---
+# Nginx Load Balancer Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: ml-production
+  labels:
+    app.kubernetes.io/name: nginx
+    app.kubernetes.io/component: loadbalancer
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 443
+    protocol: TCP
+  selector:
+    app: nginx
+    component: loadbalancer
+---
+# Postgres Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: ml-production
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+spec:
+  type: ClusterIP
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+  selector:
+    app: postgres
+    component: database
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: ml-production
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: cache
+spec:
+  type: ClusterIP
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+    protocol: TCP
+  selector:
+    app: redis
+    component: cache
+---
+# Kafka Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-service
+  namespace: ml-production
+  labels:
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/component: streaming
+spec:
+  type: ClusterIP
+  ports:
+  - name: kafka
+    port: 9092
+    targetPort: 9092
+    protocol: TCP
+  selector:
+    app: kafka
+    component: streaming
+---
+# Zookeeper Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper-service
+  namespace: ml-production
+  labels:
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/component: coordination
+spec:
+  type: ClusterIP
+  ports:
+  - name: client
+    port: 2181
+    targetPort: 2181
+    protocol: TCP
+  - name: follower
+    port: 2888
+    targetPort: 2888
+    protocol: TCP
+  - name: election
+    port: 3888
+    targetPort: 3888
+    protocol: TCP
+  selector:
+    app: zookeeper
+    component: coordination
+---
+# Prometheus Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: ml-production
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: monitoring
+spec:
+  type: ClusterIP
+  ports:
+  - name: prometheus
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app: prometheus
+    component: monitoring
+---
+# Grafana Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  namespace: ml-production
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+spec:
+  type: ClusterIP
+  ports:
+  - name: grafana
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
+  selector:
+    app: grafana
+    component: monitoring

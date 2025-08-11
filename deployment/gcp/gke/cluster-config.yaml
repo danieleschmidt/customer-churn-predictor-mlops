@@ -1,0 +1,291 @@
+# GKE Cluster Configuration
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerCluster
+metadata:
+  name: ml-production-cluster
+  namespace: default
+  labels:
+    environment: production
+    application: ml-service
+spec:
+  location: us-central1
+  description: "Production ML service GKE cluster"
+  
+  # Initial node count (will be managed by node pools)
+  initialNodeCount: 1
+  removeDefaultNodePool: true
+  
+  # Network configuration
+  network: projects/PROJECT_ID/global/networks/ml-vpc
+  subnetwork: projects/PROJECT_ID/regions/us-central1/subnetworks/ml-subnet
+  
+  # IP allocation policy for VPC-native cluster
+  ipAllocationPolicy:
+    clusterSecondaryRangeName: gke-pods
+    servicesSecondaryRangeName: gke-services
+  
+  # Enable private cluster
+  privateClusterConfig:
+    enablePrivateNodes: true
+    enablePrivateEndpoint: false
+    masterIpv4CidrBlock: "172.16.0.0/28"
+    masterGlobalAccessConfig:
+      enabled: true
+  
+  # Master authorized networks
+  masterAuthorizedNetworksConfig:
+    enabled: true
+    cidrBlocks:
+    - cidrBlock: "10.0.0.0/8"
+      displayName: "Private networks"
+    - cidrBlock: "172.16.0.0/12"
+      displayName: "Private networks"
+    - cidrBlock: "192.168.0.0/16"
+      displayName: "Private networks"
+  
+  # Enable Workload Identity
+  workloadIdentityConfig:
+    workloadPool: "PROJECT_ID.svc.id.goog"
+  
+  # Enable network policy
+  networkPolicy:
+    enabled: true
+  
+  # Enable pod security policy
+  podSecurityPolicyConfig:
+    enabled: true
+    
+  # Addons configuration
+  addonsConfig:
+    httpLoadBalancing:
+      disabled: false
+    horizontalPodAutoscaling:
+      disabled: false
+    networkPolicyConfig:
+      disabled: false
+    cloudRunConfig:
+      disabled: true
+    dnsCacheConfig:
+      enabled: true
+    gcePersistentDiskCsiDriverConfig:
+      enabled: true
+    gkebBackupAgentConfig:
+      enabled: true
+      
+  # Binary authorization
+  binaryAuthorization:
+    enabled: true
+    evaluationMode: PROJECT_SINGLETON_POLICY_ENFORCE
+    
+  # Shielded nodes
+  shieldedNodes:
+    enabled: true
+    
+  # Enable image streaming
+  nodePoolDefaults:
+    nodeConfigDefaults:
+      gcfsConfig:
+        enabled: true
+  
+  # Logging and monitoring
+  loggingService: logging.googleapis.com/kubernetes
+  monitoringService: monitoring.googleapis.com/kubernetes
+  
+  # Maintenance policy
+  maintenancePolicy:
+    window:
+      recurringWindow:
+        window:
+          startTime: "2024-01-01T02:00:00Z"
+          endTime: "2024-01-01T06:00:00Z"
+        recurrence: "FREQ=WEEKLY;BYDAY=SA"
+  
+  # Release channel
+  releaseChannel:
+    channel: STABLE
+    
+  # Resource usage export
+  resourceUsageExportConfig:
+    bigqueryDestination:
+      datasetId: gke_usage_metering
+    enableNetworkEgressMetering: true
+    enableResourceConsumptionMetering: true
+
+---
+# System Node Pool
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: system-pool
+  namespace: default
+  labels:
+    environment: production
+    pool-type: system
+spec:
+  clusterRef:
+    name: ml-production-cluster
+  location: us-central1
+  
+  nodeCount: 3
+  
+  autoscaling:
+    enabled: true
+    minNodeCount: 3
+    maxNodeCount: 5
+    
+  management:
+    autoRepair: true
+    autoUpgrade: true
+    
+  nodeConfig:
+    machineType: e2-standard-4
+    diskSizeGb: 100
+    diskType: pd-ssd
+    imageType: COS_CONTAINERD
+    
+    # Preemptible instances for cost optimization
+    preemptible: false
+    spot: false
+    
+    # Security
+    serviceAccount: gke-system-sa@PROJECT_ID.iam.gserviceaccount.com
+    shieldedInstanceConfig:
+      enableSecureBoot: true
+      enableIntegrityMonitoring: true
+    
+    # Workload Identity
+    workloadMetadataConfig:
+      mode: GKE_METADATA
+    
+    # Node labels and taints
+    labels:
+      environment: production
+      node-pool: system
+      workload-type: system
+    
+    taints:
+    - key: CriticalAddonsOnly
+      value: "true"
+      effect: NO_SCHEDULE
+      
+    oauthScopes:
+    - https://www.googleapis.com/auth/cloud-platform
+
+---
+# ML Workload Node Pool
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: ml-workload-pool
+  namespace: default
+  labels:
+    environment: production
+    pool-type: workload
+spec:
+  clusterRef:
+    name: ml-production-cluster
+  location: us-central1
+  
+  nodeCount: 3
+  
+  autoscaling:
+    enabled: true
+    minNodeCount: 3
+    maxNodeCount: 20
+    
+  management:
+    autoRepair: true
+    autoUpgrade: true
+    
+  nodeConfig:
+    machineType: n2-standard-8
+    diskSizeGb: 200
+    diskType: pd-ssd
+    imageType: COS_CONTAINERD
+    
+    # For ML workloads, we might want non-preemptible instances
+    preemptible: false
+    spot: false
+    
+    # Security
+    serviceAccount: gke-ml-workload-sa@PROJECT_ID.iam.gserviceaccount.com
+    shieldedInstanceConfig:
+      enableSecureBoot: true
+      enableIntegrityMonitoring: true
+    
+    # Workload Identity
+    workloadMetadataConfig:
+      mode: GKE_METADATA
+    
+    # Node labels
+    labels:
+      environment: production
+      node-pool: ml-workload
+      workload-type: ml-inference
+      
+    oauthScopes:
+    - https://www.googleapis.com/auth/cloud-platform
+
+---
+# Spot Instance Node Pool for Batch Processing
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: spot-batch-pool
+  namespace: default
+  labels:
+    environment: production
+    pool-type: batch
+spec:
+  clusterRef:
+    name: ml-production-cluster
+  location: us-central1
+  
+  nodeCount: 0
+  
+  autoscaling:
+    enabled: true
+    minNodeCount: 0
+    maxNodeCount: 50
+    
+  management:
+    autoRepair: true
+    autoUpgrade: true
+    
+  nodeConfig:
+    machineType: c2-standard-16
+    diskSizeGb: 500
+    diskType: pd-ssd
+    imageType: COS_CONTAINERD
+    
+    # Use spot instances for cost optimization
+    preemptible: false
+    spot: true
+    
+    # Security
+    serviceAccount: gke-batch-sa@PROJECT_ID.iam.gserviceaccount.com
+    shieldedInstanceConfig:
+      enableSecureBoot: true
+      enableIntegrityMonitoring: true
+    
+    # Workload Identity
+    workloadMetadataConfig:
+      mode: GKE_METADATA
+    
+    # Node labels and taints
+    labels:
+      environment: production
+      node-pool: spot-batch
+      workload-type: batch-processing
+      instance-type: spot
+    
+    taints:
+    - key: batch-workload
+      value: "true"
+      effect: NO_SCHEDULE
+    - key: spot-instance
+      value: "true"
+      effect: NO_SCHEDULE
+      
+    oauthScopes:
+    - https://www.googleapis.com/auth/cloud-platform

@@ -1,0 +1,207 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "containerGroupName": {
+      "type": "string",
+      "defaultValue": "ml-service-production",
+      "metadata": {
+        "description": "Name for the container group"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources"
+      }
+    },
+    "imageRegistryLoginServer": {
+      "type": "string",
+      "metadata": {
+        "description": "Container registry login server"
+      }
+    },
+    "imageRegistryUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Container registry username"
+      }
+    },
+    "imageRegistryPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Container registry password"
+      }
+    }
+  },
+  "variables": {
+    "containerImage": "[concat(parameters('imageRegistryLoginServer'), '/ml-service:latest')]",
+    "dnsNameLabel": "[concat('ml-service-', uniqueString(resourceGroup().id))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2021-10-01",
+      "name": "[parameters('containerGroupName')]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "containers": [
+          {
+            "name": "ml-service",
+            "properties": {
+              "image": "[variables('containerImage')]",
+              "ports": [
+                {
+                  "port": 8000,
+                  "protocol": "TCP"
+                }
+              ],
+              "environmentVariables": [
+                {
+                  "name": "ML_ENVIRONMENT",
+                  "value": "production"
+                },
+                {
+                  "name": "ML_LOG_LEVEL",
+                  "value": "INFO"
+                },
+                {
+                  "name": "ML_WORKERS",
+                  "value": "4"
+                },
+                {
+                  "name": "ENABLE_AUTO_RETRAINING",
+                  "value": "true"
+                },
+                {
+                  "name": "ENABLE_STREAMING",
+                  "value": "true"
+                },
+                {
+                  "name": "ENABLE_CACHING",
+                  "value": "true"
+                },
+                {
+                  "name": "API_KEY_REQUIRED",
+                  "value": "true"
+                },
+                {
+                  "name": "RATE_LIMIT_ENABLED",
+                  "value": "true"
+                },
+                {
+                  "name": "DATABASE_URL",
+                  "secureValue": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', 'ml-keyvault', 'database-url'), '2019-09-01').secretUri]"
+                },
+                {
+                  "name": "REDIS_URL",
+                  "secureValue": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', 'ml-keyvault', 'redis-url'), '2019-09-01').secretUri]"
+                },
+                {
+                  "name": "JWT_SECRET",
+                  "secureValue": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', 'ml-keyvault', 'jwt-secret'), '2019-09-01').secretUri]"
+                }
+              ],
+              "resources": {
+                "requests": {
+                  "cpu": 2,
+                  "memoryInGB": 4
+                },
+                "limits": {
+                  "cpu": 4,
+                  "memoryInGB": 8
+                }
+              },
+              "livenessProbe": {
+                "httpGet": {
+                  "path": "/health",
+                  "port": 8000,
+                  "scheme": "HTTP"
+                },
+                "initialDelaySeconds": 60,
+                "periodSeconds": 30,
+                "failureThreshold": 3,
+                "successThreshold": 1,
+                "timeoutSeconds": 10
+              },
+              "readinessProbe": {
+                "httpGet": {
+                  "path": "/ready",
+                  "port": 8000,
+                  "scheme": "HTTP"
+                },
+                "initialDelaySeconds": 30,
+                "periodSeconds": 10,
+                "failureThreshold": 3,
+                "successThreshold": 1,
+                "timeoutSeconds": 5
+              },
+              "volumeMounts": [
+                {
+                  "name": "ml-models",
+                  "mountPath": "/data/models"
+                },
+                {
+                  "name": "ml-cache",
+                  "mountPath": "/data/cache"
+                }
+              ]
+            }
+          }
+        ],
+        "imageRegistryCredentials": [
+          {
+            "server": "[parameters('imageRegistryLoginServer')]",
+            "username": "[parameters('imageRegistryUsername')]",
+            "password": "[parameters('imageRegistryPassword')]"
+          }
+        ],
+        "restartPolicy": "Always",
+        "ipAddress": {
+          "type": "Public",
+          "ports": [
+            {
+              "port": 8000,
+              "protocol": "TCP"
+            }
+          ],
+          "dnsNameLabel": "[variables('dnsNameLabel')]"
+        },
+        "osType": "Linux",
+        "volumes": [
+          {
+            "name": "ml-models",
+            "azureFile": {
+              "shareName": "ml-models",
+              "storageAccountName": "mlstorageaccount",
+              "storageAccountKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', 'mlstorageaccount'), '2021-04-01').keys[0].value]"
+            }
+          },
+          {
+            "name": "ml-cache",
+            "emptyDir": {}
+          }
+        ]
+      },
+      "tags": {
+        "Environment": "production",
+        "Application": "ml-service",
+        "ManagedBy": "arm-template"
+      }
+    }
+  ],
+  "outputs": {
+    "containerIPv4Address": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ContainerInstance/containerGroups', parameters('containerGroupName'))).ipAddress.ip]"
+    },
+    "containerFQDN": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ContainerInstance/containerGroups', parameters('containerGroupName'))).ipAddress.fqdn]"
+    }
+  }
+}

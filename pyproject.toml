@@ -147,9 +147,17 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html:htmlcov",
     "--cov-report=xml:coverage.xml",
-    "--cov-fail-under=80",
+    "--cov-report=json:coverage.json",
+    "--cov-fail-under=85",
+    "--cov-branch",
     "-ra",
     "--tb=short",
+    "--maxfail=5",
+    "--durations=10",
+    "--html=test_reports/report.html",
+    "--self-contained-html",
+    "--json-report",
+    "--json-report-file=test_reports/report.json",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
@@ -158,6 +166,17 @@ markers = [
     "api: marks tests as API tests",
     "security: marks tests as security tests",
     "performance: marks tests as performance tests",
+    "chaos: marks tests as chaos engineering tests",
+    "property: marks tests as property-based tests",
+    "benchmark: marks tests as benchmarking tests",
+    "load: marks tests as load testing tests",
+    "stress: marks tests as stress testing tests",
+    "smoke: marks tests as smoke tests",
+    "regression: marks tests as regression tests",
+    "acceptance: marks tests as acceptance tests",
+    "contract: marks tests as contract tests",
+    "mutation: marks tests as mutation tests",
+    "quality_gate: marks tests as quality gate tests",
 ]
 filterwarnings = [
     "error",
@@ -174,8 +193,12 @@ omit = [
     "*/__pycache__/*",
     "*/venv/*",
     "*/env/*",
+    "*/migrations/*",
+    "*/settings/*",
 ]
 branch = true
+parallel = true
+concurrency = ["multiprocessing", "thread"]
 
 [tool.coverage.report]
 exclude_lines = [

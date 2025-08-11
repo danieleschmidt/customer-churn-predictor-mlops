@@ -1,0 +1,118 @@
+# Istio Security Policies
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: ml-production-mtls
+  namespace: ml-production
+  labels:
+    app: ml-platform
+    component: security
+spec:
+  mtls:
+    mode: STRICT
+---
+# Authorization policy for ML Service
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: ml-service-authz
+  namespace: ml-production
+  labels:
+    app: ml-platform
+    component: authorization
+spec:
+  selector:
+    matchLabels:
+      app: ml-service
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"]
+  - to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/health", "/ready", "/metrics"]
+  - from:
+    - source:
+        principals: ["cluster.local/ns/ml-production/sa/ml-service-sa"]
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/api/v1/*"]
+    when:
+    - key: request.headers[authorization]
+      values: ["Bearer *"]
+---
+# Authorization policy for Database access
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: postgres-authz
+  namespace: ml-production
+  labels:
+    app: ml-platform
+    component: database-security
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/ml-production/sa/ml-service-sa"]
+---
+# Authorization policy for Redis access
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: redis-authz
+  namespace: ml-production
+  labels:
+    app: ml-platform
+    component: cache-security
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/ml-production/sa/ml-service-sa"]
+---
+# Authorization policy for Kafka access
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: kafka-authz
+  namespace: ml-production
+  labels:
+    app: ml-platform
+    component: streaming-security
+spec:
+  selector:
+    matchLabels:
+      app: kafka
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/ml-production/sa/ml-service-sa"]
+---
+# Request Authentication for JWT validation
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: ml-service-jwt
+  namespace: ml-production
+  labels:
+    app: ml-platform
+    component: authentication
+spec:
+  selector:
+    matchLabels:
+      app: ml-service
+  jwtRules:
+  - issuer: "https://ml-platform.example.com"
+    jwksUri: "https://ml-platform.example.com/.well-known/jwks.json"
+    audiences:
+    - "ml-api"
+    forwardOriginalToken: true

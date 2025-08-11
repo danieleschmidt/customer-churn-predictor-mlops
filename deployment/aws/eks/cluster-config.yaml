@@ -1,0 +1,152 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: ml-production-cluster
+  region: us-west-2
+  version: "1.28"
+  tags:
+    Environment: production
+    Application: ml-service
+    ManagedBy: eksctl
+
+# VPC Configuration
+vpc:
+  id: "vpc-XXXXXXXXX"  # Existing VPC ID
+  subnets:
+    private:
+      us-west-2a:
+        id: "subnet-XXXXXXXXX"
+      us-west-2b:
+        id: "subnet-YYYYYYYYY"
+      us-west-2c:
+        id: "subnet-ZZZZZZZZZ"
+    public:
+      us-west-2a:
+        id: "subnet-AAAAAAAAA"
+      us-west-2b:
+        id: "subnet-BBBBBBBBB"
+      us-west-2c:
+        id: "subnet-CCCCCCCCC"
+  clusterEndpoints:
+    privateAccess: true
+    publicAccess: true
+    publicAccessCIDRs: ["0.0.0.0/0"]  # Restrict in production
+
+# IAM Configuration
+iam:
+  withOIDC: true
+  serviceAccounts:
+    - metadata:
+        name: cluster-autoscaler
+        namespace: kube-system
+      wellKnownPolicies:
+        autoScaler: true
+    - metadata:
+        name: aws-load-balancer-controller
+        namespace: kube-system
+      wellKnownPolicies:
+        awsLoadBalancerController: true
+    - metadata:
+        name: ml-service-sa
+        namespace: ml-production
+      attachPolicyARNs:
+        - "arn:aws:iam::ACCOUNT_ID:policy/MLServicePolicy"
+        - "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+        - "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+
+# Node Groups
+managedNodeGroups:
+  - name: ml-workers-general
+    instanceType: m5.xlarge
+    minSize: 3
+    maxSize: 10
+    desiredCapacity: 3
+    volumeSize: 100
+    volumeType: gp3
+    volumeEncrypted: true
+    amiFamily: AmazonLinux2
+    iam:
+      attachPolicyARNs:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+    labels:
+      role: general-purpose
+      environment: production
+    tags:
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/ml-production-cluster: "owned"
+    ssh:
+      publicKeyName: ml-production-key
+    privateNetworking: true
+
+  - name: ml-workers-compute
+    instanceTypes: ["c5.2xlarge", "c5.4xlarge"]
+    minSize: 2
+    maxSize: 20
+    desiredCapacity: 2
+    volumeSize: 200
+    volumeType: gp3
+    volumeEncrypted: true
+    amiFamily: AmazonLinux2
+    spot: true
+    iam:
+      attachPolicyARNs:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+    labels:
+      role: compute-intensive
+      environment: production
+      node-type: spot
+    taints:
+      - key: compute-intensive
+        value: "true"
+        effect: NoSchedule
+    tags:
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/ml-production-cluster: "owned"
+      k8s.io/cluster-autoscaler/node-template/label/role: compute-intensive
+    ssh:
+      publicKeyName: ml-production-key
+    privateNetworking: true
+
+# Fargate Profiles
+fargateProfiles:
+  - name: ml-service-fargate
+    selectors:
+      - namespace: ml-production
+        labels:
+          compute-type: fargate
+    subnets:
+      - subnet-XXXXXXXXX
+      - subnet-YYYYYYYYY
+      - subnet-ZZZZZZZZZ
+
+# Add-ons
+addons:
+  - name: vpc-cni
+    version: latest
+    attachPolicyARNs:
+      - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+  - name: coredns
+    version: latest
+  - name: kube-proxy
+    version: latest
+  - name: aws-ebs-csi-driver
+    version: latest
+    attachPolicyARNs:
+      - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+
+# CloudWatch Logging
+cloudWatch:
+  clusterLogging:
+    enableTypes: ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+    logRetentionInDays: 30
+
+# Security
+secretsEncryption:
+  keyARN: "arn:aws:kms:us-west-2:ACCOUNT_ID:key/XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"

@@ -1,0 +1,111 @@
+# Telemetry configuration for observability
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: ml-platform-telemetry
+  namespace: ml-production
+  labels:
+    app: ml-platform
+    component: observability
+spec:
+  metrics:
+  - providers:
+    - name: prometheus
+  - overrides:
+    - match:
+        metric: ALL_METRICS
+        mode: CLIENT
+      tagOverrides:
+        destination_service_name:
+          operation: UPSERT
+          value: "ml-service"
+        source_app:
+          operation: UPSERT
+          value: "ml-platform"
+  - overrides:
+    - match:
+        metric: ALL_METRICS
+        mode: SERVER
+      tagOverrides:
+        destination_service_name:
+          operation: UPSERT
+          value: "ml-service"
+  # Custom metrics for ML workloads
+  - providers:
+    - name: prometheus
+  - overrides:
+    - match:
+        metric: requests_total
+      tagOverrides:
+        ml_model_version:
+          operation: UPSERT
+          value: "%{REQUEST_HEADER_ML_MODEL_VERSION}"
+        prediction_type:
+          operation: UPSERT
+          value: "%{REQUEST_HEADER_PREDICTION_TYPE}"
+  tracing:
+  - providers:
+    - name: jaeger
+  accessLogging:
+  - providers:
+    - name: otel
+---
+# Envoy Filter for custom headers
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ml-service-headers
+  namespace: ml-production
+  labels:
+    app: ml-platform
+    component: headers
+spec:
+  workloadSelector:
+    labels:
+      app: ml-service
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.wasm
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
+          config:
+            name: "ml_headers"
+            root_id: "ml_headers"
+            vm_config:
+              vm_id: "ml_headers"
+              runtime: "envoy.wasm.runtime.v8"
+              code:
+                local:
+                  inline_string: |
+                    class MLHeadersFilter {
+                      constructor(rootId, vmId) {
+                        this.rootId = rootId;
+                        this.vmId = vmId;
+                      }
+                      
+                      onRequestHeaders() {
+                        const modelVersion = this.getRequestHeader("x-ml-model-version");
+                        const predictionType = this.getRequestHeader("x-prediction-type");
+                        
+                        if (modelVersion) {
+                          this.setResponseHeader("x-served-by-model", modelVersion);
+                        }
+                        
+                        if (predictionType) {
+                          this.setResponseHeader("x-prediction-type-processed", predictionType);
+                        }
+                        
+                        return Headers.Continue;
+                      }
+                    }
+                    
+                    registerRootContext((rootId, vmId) => new MLHeadersFilter(rootId, vmId));

@@ -1,0 +1,164 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ml-service-production
+  namespace: default
+  labels:
+    environment: production
+    application: ml-service
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/execution-environment: gen2
+    run.googleapis.com/cpu-throttling: "false"
+spec:
+  template:
+    metadata:
+      annotations:
+        # Scaling configuration
+        autoscaling.knative.dev/minScale: "3"
+        autoscaling.knative.dev/maxScale: "100"
+        autoscaling.knative.dev/target: "70"
+        
+        # Resource allocation
+        run.googleapis.com/cpu: "2"
+        run.googleapis.com/memory: "4Gi"
+        run.googleapis.com/execution-environment: gen2
+        
+        # Traffic allocation
+        run.googleapis.com/client-name: "terraform"
+        
+        # Security
+        run.googleapis.com/vpc-access-connector: "ml-vpc-connector"
+        run.googleapis.com/vpc-access-egress: "private-ranges-only"
+        
+        # Monitoring
+        run.googleapis.com/breakglass: "false"
+        
+        # Session affinity
+        run.googleapis.com/session-affinity: "false"
+        
+        # Startup CPU boost
+        run.googleapis.com/startup-cpu-boost: "true"
+        
+    spec:
+      containerConcurrency: 1000
+      timeoutSeconds: 300
+      serviceAccountName: "ml-service-sa@PROJECT_ID.iam.gserviceaccount.com"
+      
+      containers:
+      - name: ml-service
+        image: gcr.io/PROJECT_ID/ml-service:latest
+        ports:
+        - containerPort: 8000
+          name: http1
+        
+        env:
+        - name: ML_ENVIRONMENT
+          value: "production"
+        - name: ML_LOG_LEVEL
+          value: "INFO"
+        - name: ML_WORKERS
+          value: "4"
+        - name: ENABLE_AUTO_RETRAINING
+          value: "true"
+        - name: ENABLE_STREAMING
+          value: "true"
+        - name: ENABLE_CACHING
+          value: "true"
+        - name: API_KEY_REQUIRED
+          value: "true"
+        - name: RATE_LIMIT_ENABLED
+          value: "true"
+        - name: GOOGLE_CLOUD_PROJECT
+          value: "PROJECT_ID"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: DATABASE_URL
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: REDIS_URL
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: JWT_SECRET
+        
+        resources:
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+            
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 0
+          timeoutSeconds: 10
+          periodSeconds: 3
+          failureThreshold: 3
+          
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          timeoutSeconds: 10
+          periodSeconds: 30
+          failureThreshold: 3
+          
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+          
+        volumeMounts:
+        - name: ml-models
+          mountPath: /data/models
+        - name: secrets-volume
+          mountPath: /secrets
+          readOnly: true
+          
+      volumes:
+      - name: ml-models
+        csi:
+          driver: gcsfuse.run.googleapis.com
+          volumeAttributes:
+            bucketName: "ml-models-production-bucket"
+            mountOptions: "implicit-dirs"
+      - name: secrets-volume
+        secret:
+          secretName: ml-service-secrets
+          
+  traffic:
+  - percent: 90
+    latestRevision: false
+    revisionName: ml-service-production-stable
+  - percent: 10
+    latestRevision: true
+    tag: canary
+
+---
+# Cloud Run Domain Mapping
+apiVersion: serving.knative.dev/v1alpha1
+kind: DomainMapping
+metadata:
+  name: ml-api.gcp.example.com
+  namespace: default
+  labels:
+    environment: production
+spec:
+  ref:
+    name: ml-service-production
+    kind: Service
+    apiVersion: serving.knative.dev/v1

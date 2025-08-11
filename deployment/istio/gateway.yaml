@@ -1,0 +1,134 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: ml-platform-gateway
+  namespace: ml-production
+  labels:
+    app: ml-platform
+    component: gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - ml-api.example.com
+    - grafana.ml.example.com
+    - prometheus.ml.example.com
+    tls:
+      httpsRedirect: true
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: ml-platform-tls
+    hosts:
+    - ml-api.example.com
+    - grafana.ml.example.com
+    - prometheus.ml.example.com
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: ml-service-vs
+  namespace: ml-production
+  labels:
+    app: ml-platform
+    component: routing
+spec:
+  hosts:
+  - ml-api.example.com
+  gateways:
+  - ml-platform-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/health"
+    route:
+    - destination:
+        host: ml-service
+        port:
+          number: 8000
+    timeout: 5s
+  - match:
+    - uri:
+        prefix: "/metrics"
+    route:
+    - destination:
+        host: ml-service
+        port:
+          number: 8000
+    timeout: 10s
+  - match:
+    - uri:
+        prefix: "/api/v1"
+    route:
+    - destination:
+        host: ml-service
+        port:
+          number: 8000
+        subset: stable
+      weight: 90
+    - destination:
+        host: ml-service
+        port:
+          number: 8000
+        subset: canary
+      weight: 10
+    fault:
+      delay:
+        percentage:
+          value: 0.1
+        fixedDelay: 5s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+    timeout: 30s
+  - match:
+    - uri:
+        prefix: "/"
+    route:
+    - destination:
+        host: ml-service
+        port:
+          number: 8000
+    timeout: 30s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: monitoring-vs
+  namespace: ml-production
+  labels:
+    app: ml-platform
+    component: monitoring
+spec:
+  hosts:
+  - grafana.ml.example.com
+  - prometheus.ml.example.com
+  gateways:
+  - ml-platform-gateway
+  http:
+  - match:
+    - headers:
+        host:
+          exact: grafana.ml.example.com
+    route:
+    - destination:
+        host: grafana-service
+        port:
+          number: 3000
+  - match:
+    - headers:
+        host:
+          exact: prometheus.ml.example.com
+    route:
+    - destination:
+        host: prometheus-service
+        port:
+          number: 9090
