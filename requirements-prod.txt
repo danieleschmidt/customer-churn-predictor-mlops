@@ -1,3 +1,4 @@
+```
 # Production ML System Requirements
 
 # Core Framework
@@ -45,7 +46,7 @@ kombu==5.3.4
 
 # Web and API
 httpx==0.28.1
-requests==2.31.0
+requests==2.32.4
 websockets==12.0
 aiohttp==3.9.1
 
@@ -159,3 +160,4 @@ sphinx-rtd-theme==2.0.0
 
 # Production WSGI Server
 waitress==2.1.2
+```
