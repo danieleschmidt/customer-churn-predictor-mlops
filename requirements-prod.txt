@@ -158,4 +158,4 @@ sphinx==7.2.6
 sphinx-rtd-theme==2.0.0
 
 # Production WSGI Server
-waitress==2.1.2
+waitress==3.0.2
