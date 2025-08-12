@@ -21,7 +21,7 @@ tensorflow-cpu==2.15.0
 xgboost==2.0.2
 lightgbm==4.1.0
 catboost==1.2.2
-optuna==3.4.0
+optuna==4.4.0
 
 # Feature Engineering
 feature-engine==1.6.2
