@@ -1,4 +1,3 @@
-```
 # Production ML System Requirements
 
 # Core Framework
@@ -70,7 +69,7 @@ click==8.1.7
 
 # Security
 cryptography==45.0.6
-pyjwt==2.8.0
+pyjwt==2.10.1
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
 
@@ -159,4 +158,3 @@ sphinx-rtd-theme==2.0.0
 
 # Production WSGI Server
 waitress==3.0.2
-```
