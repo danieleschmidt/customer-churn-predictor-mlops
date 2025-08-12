@@ -151,7 +151,7 @@ prophet==1.1.7
 
 # Natural Language Processing (if needed)
 nltk==3.9.1
-spacy==3.7.2
+spacy==3.8.7
 
 # API Documentation
 sphinx==7.2.6
