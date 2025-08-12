@@ -1,3 +1,4 @@
+```
 # Production ML System Requirements
 
 # Core Framework
@@ -21,7 +22,7 @@ tensorflow-cpu==2.15.0
 xgboost==2.0.2
 lightgbm==4.6.0
 catboost==1.2.8
-optuna==3.4.0
+optuna==4.4.0
 
 # Feature Engineering
 feature-engine==1.8.3
@@ -158,3 +159,4 @@ sphinx-rtd-theme==2.0.0
 
 # Production WSGI Server
 waitress==3.0.2
+```
