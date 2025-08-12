@@ -26,7 +26,7 @@ optuna==3.4.0
 # Feature Engineering
 feature-engine==1.6.2
 category-encoders==2.6.3
-imbalanced-learn==0.11.0
+imbalanced-learn==0.13.0
 
 # Database
 sqlalchemy==2.0.23
