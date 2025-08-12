@@ -19,7 +19,7 @@ tensorflow-cpu==2.15.0
 
 # Advanced ML Libraries
 xgboost==2.0.2
-lightgbm==4.1.0
+lightgbm==4.6.0
 catboost==1.2.2
 optuna==3.4.0
 
