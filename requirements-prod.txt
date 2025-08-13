@@ -46,7 +46,7 @@ kombu==5.3.4
 # Web and API
 httpx==0.25.2
 requests==2.31.0
-websockets==12.0
+websockets==15.0.1
 aiohttp==3.9.1
 
 # Monitoring and Observability
