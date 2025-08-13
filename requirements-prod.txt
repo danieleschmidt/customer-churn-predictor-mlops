@@ -1,9 +1,9 @@
 # Production ML System Requirements
 
 # Core Framework
-fastapi==0.104.1
+fastapi==0.116.1
 uvicorn[standard]==0.24.0
-pydantic==2.4.2
+pydantic==2.11.7
 pydantic-settings==2.0.3
 
 # Machine Learning Core
@@ -71,7 +71,7 @@ click==8.1.7
 cryptography==41.0.7
 pyjwt==2.10.1
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.6
+python-multipart==0.0.20
 
 # Data Validation
 marshmallow==3.20.1
