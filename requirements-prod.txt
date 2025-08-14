@@ -99,7 +99,7 @@ h5py==3.10.0
 pyarrow==14.0.1
 
 # Image Processing (if needed)
-pillow==10.1.0
+pillow==11.3.0
 opencv-python-headless==4.8.1.78
 
 # Scientific Computing
