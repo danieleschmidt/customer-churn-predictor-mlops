@@ -10,7 +10,7 @@ pydantic-settings==2.0.3
 scikit-learn==1.7.1
 numpy==2.3.2
 pandas==2.3.1
-scipy==1.11.4
+scipy==1.16.1
 
 # Deep Learning (Optional GPU support)
 torch==2.1.1+cpu
