@@ -14,7 +14,7 @@ scipy==1.11.4
 
 # Deep Learning (Optional GPU support)
 torch==2.1.1+cpu
-torchvision==0.16.1+cpu
+torchvision==0.23.0
 tensorflow-cpu==2.15.0
 
 # Advanced ML Libraries
