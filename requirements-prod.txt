@@ -130,7 +130,7 @@ psutil==7.0.0
 py-cpuinfo==9.0.0
 
 # Serialization
-orjson==3.9.10
+orjson==3.11.2
 msgpack==1.0.7
 
 # Async Support
