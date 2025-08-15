@@ -146,7 +146,7 @@ bentoml==1.1.11
 networkx==3.2.1
 
 # Time Series
-statsmodels==0.14.0
+statsmodels==0.14.5
 prophet==1.1.4
 
 # Natural Language Processing (if needed)
