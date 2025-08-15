@@ -1,0 +1,140 @@
+{
+  "execution_id": "comprehensive_test_20250815_080035",
+  "start_time": "2025-08-15T08:00:35.804171",
+  "end_time": "2025-08-15T08:00:57.507666",
+  "total_duration": 21.703495,
+  "suite_results": [
+    {
+      "suite_name": "Unit Tests",
+      "passed": false,
+      "execution_time": 5.264603614807129,
+      "tests_run": 0,
+      "tests_passed": 0,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "coverage_percentage": 0.0,
+      "quality_score": 0.0,
+      "error_details": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --html=test_reports/report.html --self-contained-html --json-report --json-report-file=test_reports/unit_report.json\n  inifile: /root/repo/pyproject.toml\n  rootdir: /root/repo\n\n",
+      "artifacts": [
+        "test_reports/unit_coverage.json",
+        "test_reports/unit_report.json"
+      ]
+    },
+    {
+      "suite_name": "Security Tests",
+      "passed": false,
+      "execution_time": 10.583555698394775,
+      "tests_run": 0,
+      "tests_passed": 0,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "coverage_percentage": 0.0,
+      "quality_score": 0.0,
+      "error_details": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --html=test_reports/report.html --self-contained-html --json-report --json-report-file=test_reports/security_report.json\n  inifile: /root/repo/pyproject.toml\n  rootdir: /root/repo\n\n",
+      "artifacts": [
+        "test_reports/security_report.json"
+      ]
+    },
+    {
+      "suite_name": "Property-Based Tests",
+      "passed": false,
+      "execution_time": 10.610970497131348,
+      "tests_run": 0,
+      "tests_passed": 0,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "coverage_percentage": 0.0,
+      "quality_score": 0,
+      "error_details": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --html=test_reports/report.html --self-contained-html --json-report --json-report-file=test_reports/property_report.json\n  inifile: /root/repo/pyproject.toml\n  rootdir: /root/repo\n\n",
+      "artifacts": [
+        "test_reports/property_report.json"
+      ]
+    },
+    {
+      "suite_name": "Integration Tests",
+      "passed": false,
+      "execution_time": 10.932981014251709,
+      "tests_run": 0,
+      "tests_passed": 0,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "coverage_percentage": 0.0,
+      "quality_score": 0,
+      "error_details": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --html=test_reports/report.html --self-contained-html --json-report --json-report-file=test_reports/integration_report.json --timeout=1800\n  inifile: /root/repo/pyproject.toml\n  rootdir: /root/repo\n\n",
+      "artifacts": [
+        "test_reports/integration_report.json"
+      ]
+    },
+    {
+      "suite_name": "Performance Tests",
+      "passed": false,
+      "execution_time": 11.00722336769104,
+      "tests_run": 0,
+      "tests_passed": 0,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "coverage_percentage": 0.0,
+      "quality_score": 0.0,
+      "error_details": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --html=test_reports/report.html --self-contained-html --benchmark-json=test_reports/benchmark_report.json --json-report --json-report-file=test_reports/performance_report.json\n  inifile: /root/repo/pyproject.toml\n  rootdir: /root/repo\n\n",
+      "artifacts": [
+        "test_reports/performance_report.json",
+        "test_reports/benchmark_report.json"
+      ]
+    },
+    {
+      "suite_name": "Chaos Engineering Tests",
+      "passed": false,
+      "execution_time": 5.22339940071106,
+      "tests_run": 0,
+      "tests_passed": 0,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "coverage_percentage": 0.0,
+      "quality_score": 0,
+      "error_details": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --html=test_reports/report.html --self-contained-html --json-report --json-report-file=test_reports/chaos_report.json\n  inifile: /root/repo/pyproject.toml\n  rootdir: /root/repo\n\n",
+      "artifacts": [
+        "test_reports/chaos_report.json"
+      ]
+    },
+    {
+      "suite_name": "Quality Gates",
+      "passed": false,
+      "execution_time": 0.6245663166046143,
+      "tests_run": 3,
+      "tests_passed": 1,
+      "tests_failed": 2,
+      "tests_skipped": 0,
+      "coverage_percentage": 0.0,
+      "quality_score": 25.0,
+      "error_details": "",
+      "artifacts": [
+        "test_reports/quality_gates_report.json"
+      ]
+    }
+  ],
+  "overall_passed": false,
+  "overall_coverage": 0.0,
+  "overall_quality_score": 0.5,
+  "quality_gates_passed": false,
+  "deployment_approved": false,
+  "summary": "\u274c Tests failed. Deployment blocked until issues are resolved.\n\nTest Execution Summary:\n\u2022 Total Tests: 3\n\u2022 Passed: 1\n\u2022 Failed: 2\n\u2022 Suites Executed: 7",
+  "recommendations": [
+    "\ud83d\udcc8 Increase test coverage from 0.0% to 85%+ by adding unit tests",
+    "\ud83c\udfaf Improve overall quality score from 0.5 to 80+ by fixing failing tests",
+    "\ud83d\udd27 Fix failing unit tests: 0 tests failed",
+    "\u26a1 Improve unit tests quality (currently 0.0/100)",
+    "\ud83d\udd27 Fix failing security tests: 0 tests failed",
+    "\u26a1 Improve security tests quality (currently 0.0/100)",
+    "\ud83d\udd27 Fix failing property-based tests: 0 tests failed",
+    "\u26a1 Improve property-based tests quality (currently 0.0/100)",
+    "\ud83d\udd27 Fix failing integration tests: 0 tests failed",
+    "\u26a1 Improve integration tests quality (currently 0.0/100)",
+    "\ud83d\udd27 Fix failing performance tests: 0 tests failed",
+    "\u26a1 Improve performance tests quality (currently 0.0/100)",
+    "\ud83d\udd27 Fix failing chaos engineering tests: 0 tests failed",
+    "\u26a1 Improve chaos engineering tests quality (currently 0.0/100)",
+    "\ud83d\udd27 Fix failing quality gates: 2 tests failed",
+    "\u26a1 Improve quality gates quality (currently 25.0/100)",
+    "\ud83d\udd12 Address security test failures immediately - security is critical"
+  ]
+}

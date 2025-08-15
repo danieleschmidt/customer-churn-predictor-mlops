@@ -1,0 +1,207 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Comprehensive Test Report - comprehensive_test_20250815_080035</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; }
+        .metrics { display: flex; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; }
+        .metric-card { flex: 1; min-width: 200px; background: white; padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0; text-align: center; }
+        .metric-value { font-size: 28px; font-weight: bold; margin-bottom: 5px; }
+        .metric-label { color: #666; font-size: 14px; }
+        .passed { color: #4caf50; }
+        .failed { color: #f44336; }
+        .warning { color: #ff9800; }
+        .suite-results { margin-bottom: 30px; }
+        .suite-item { background: white; margin: 10px 0; padding: 20px; border-radius: 8px; border-left: 4px solid #ddd; }
+        .suite-item.passed { border-left-color: #4caf50; }
+        .suite-item.failed { border-left-color: #f44336; }
+        .suite-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .suite-name { font-size: 18px; font-weight: bold; }
+        .suite-stats { font-size: 14px; color: #666; }
+        .recommendations { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 20px; }
+        .recommendation { margin: 10px 0; padding-left: 20px; }
+        .summary { background: #e8f5e8; border: 1px solid #c8e6c9; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+        .summary.failed { background: #ffebee; border-color: #ffcdd2; }
+        .progress-bar { background: #e0e0e0; border-radius: 10px; height: 20px; margin: 10px 0; }
+        .progress-fill { height: 100%; border-radius: 10px; transition: width 0.3s ease; }
+        .progress-fill.high { background: #4caf50; }
+        .progress-fill.medium { background: #ff9800; }
+        .progress-fill.low { background: #f44336; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Comprehensive Test Report</h1>
+            <p>Execution ID: comprehensive_test_20250815_080035</p>
+            <p>Generated: 2025-08-15 08:00:35 | Duration: 21.7s</p>
+        </div>
+
+        <div class="summary failed">
+            <h2>Executive Summary</h2>
+            <p>❌ Tests failed. Deployment blocked until issues are resolved.<br><br>Test Execution Summary:<br>• Total Tests: 3<br>• Passed: 1<br>• Failed: 2<br>• Suites Executed: 7</p>
+        </div>
+
+        <div class="metrics">
+            <div class="metric-card">
+                <div class="metric-value failed">FAILED</div>
+                <div class="metric-label">Overall Status</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">0.0%</div>
+                <div class="metric-label">Coverage</div>
+                <div class="progress-bar">
+                    <div class="progress-fill low" style="width: 0.0%"></div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">0.5</div>
+                <div class="metric-label">Quality Score</div>
+                <div class="progress-bar">
+                    <div class="progress-fill low" style="width: 0.5%"></div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value failed">BLOCKED</div>
+                <div class="metric-label">Deployment</div>
+            </div>
+        </div>
+
+        <div class="suite-results">
+            <h2>Test Suite Results</h2>
+            
+            <div class="suite-item failed">
+                <div class="suite-header">
+                    <div class="suite-name">Unit Tests</div>
+                    <div class="suite-stats">❌ FAILED | 5.3s</div>
+                </div>
+                <div class="suite-stats">
+                    Tests: 0 | Passed: 0 | Failed: 0 | Skipped: 0
+                    | Quality Score: 0.0/100
+                    
+                </div>
+                <div style="color: #f44336; margin-top: 10px;">Error: ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]
+__main__.py: error: unrecognized arguments: --html=test_reports/report.html --self-contained-html --json-report --json-report-file=test_reports/unit_report.json
+  inifile: /root/repo/pyproject.toml
+  rootdir: /root/repo
+
+</div>
+            </div>
+            
+            <div class="suite-item failed">
+                <div class="suite-header">
+                    <div class="suite-name">Security Tests</div>
+                    <div class="suite-stats">❌ FAILED | 10.6s</div>
+                </div>
+                <div class="suite-stats">
+                    Tests: 0 | Passed: 0 | Failed: 0 | Skipped: 0
+                    | Quality Score: 0.0/100
+                    
+                </div>
+                <div style="color: #f44336; margin-top: 10px;">Error: ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]
+__main__.py: error: unrecognized arguments: --html=test_reports/report.html --self-contained-html --json-report --json-report-file=test_reports/security_report.json
+  inifile: /root/repo/pyproject.toml
+  rootdir: /root/repo
+
+</div>
+            </div>
+            
+            <div class="suite-item failed">
+                <div class="suite-header">
+                    <div class="suite-name">Property-Based Tests</div>
+                    <div class="suite-stats">❌ FAILED | 10.6s</div>
+                </div>
+                <div class="suite-stats">
+                    Tests: 0 | Passed: 0 | Failed: 0 | Skipped: 0
+                    | Quality Score: 0.0/100
+                    
+                </div>
+                <div style="color: #f44336; margin-top: 10px;">Error: ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]
+__main__.py: error: unrecognized arguments: --html=test_reports/report.html --self-contained-html --json-report --json-report-file=test_reports/property_report.json
+  inifile: /root/repo/pyproject.toml
+  rootdir: /root/repo
+
+</div>
+            </div>
+            
+            <div class="suite-item failed">
+                <div class="suite-header">
+                    <div class="suite-name">Integration Tests</div>
+                    <div class="suite-stats">❌ FAILED | 10.9s</div>
+                </div>
+                <div class="suite-stats">
+                    Tests: 0 | Passed: 0 | Failed: 0 | Skipped: 0
+                    | Quality Score: 0.0/100
+                    
+                </div>
+                <div style="color: #f44336; margin-top: 10px;">Error: ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]
+__main__.py: error: unrecognized arguments: --html=test_reports/report.html --self-contained-html --json-report --json-report-file=test_reports/integration_report.json --timeout=1800
+  inifile: /root/repo/pyproject.toml
+  rootdir: /root/repo
+
+</div>
+            </div>
+            
+            <div class="suite-item failed">
+                <div class="suite-header">
+                    <div class="suite-name">Performance Tests</div>
+                    <div class="suite-stats">❌ FAILED | 11.0s</div>
+                </div>
+                <div class="suite-stats">
+                    Tests: 0 | Passed: 0 | Failed: 0 | Skipped: 0
+                    | Quality Score: 0.0/100
+                    
+                </div>
+                <div style="color: #f44336; margin-top: 10px;">Error: ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]
+__main__.py: error: unrecognized arguments: --html=test_reports/report.html --self-contained-html --benchmark-json=test_reports/benchmark_report.json --json-report --json-report-file=test_reports/performance_report.json
+  inifile: /root/repo/pyproject.toml
+  rootdir: /root/repo
+
+</div>
+            </div>
+            
+            <div class="suite-item failed">
+                <div class="suite-header">
+                    <div class="suite-name">Chaos Engineering Tests</div>
+                    <div class="suite-stats">❌ FAILED | 5.2s</div>
+                </div>
+                <div class="suite-stats">
+                    Tests: 0 | Passed: 0 | Failed: 0 | Skipped: 0
+                    | Quality Score: 0.0/100
+                    
+                </div>
+                <div style="color: #f44336; margin-top: 10px;">Error: ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]
+__main__.py: error: unrecognized arguments: --html=test_reports/report.html --self-contained-html --json-report --json-report-file=test_reports/chaos_report.json
+  inifile: /root/repo/pyproject.toml
+  rootdir: /root/repo
+
+</div>
+            </div>
+            
+            <div class="suite-item failed">
+                <div class="suite-header">
+                    <div class="suite-name">Quality Gates</div>
+                    <div class="suite-stats">❌ FAILED | 0.6s</div>
+                </div>
+                <div class="suite-stats">
+                    Tests: 3 | Passed: 1 | Failed: 2 | Skipped: 0
+                    | Quality Score: 25.0/100
+                    
+                </div>
+                
+            </div>
+            
+        </div>
+
+        
+            <div class="recommendations">
+                <h2>Recommendations</h2>
+                <div class="recommendation">• 📈 Increase test coverage from 0.0% to 85%+ by adding unit tests</div><div class="recommendation">• 🎯 Improve overall quality score from 0.5 to 80+ by fixing failing tests</div><div class="recommendation">• 🔧 Fix failing unit tests: 0 tests failed</div><div class="recommendation">• ⚡ Improve unit tests quality (currently 0.0/100)</div><div class="recommendation">• 🔧 Fix failing security tests: 0 tests failed</div><div class="recommendation">• ⚡ Improve security tests quality (currently 0.0/100)</div><div class="recommendation">• 🔧 Fix failing property-based tests: 0 tests failed</div><div class="recommendation">• ⚡ Improve property-based tests quality (currently 0.0/100)</div><div class="recommendation">• 🔧 Fix failing integration tests: 0 tests failed</div><div class="recommendation">• ⚡ Improve integration tests quality (currently 0.0/100)</div><div class="recommendation">• 🔧 Fix failing performance tests: 0 tests failed</div><div class="recommendation">• ⚡ Improve performance tests quality (currently 0.0/100)</div><div class="recommendation">• 🔧 Fix failing chaos engineering tests: 0 tests failed</div><div class="recommendation">• ⚡ Improve chaos engineering tests quality (currently 0.0/100)</div><div class="recommendation">• 🔧 Fix failing quality gates: 2 tests failed</div><div class="recommendation">• ⚡ Improve quality gates quality (currently 25.0/100)</div><div class="recommendation">• 🔒 Address security test failures immediately - security is critical</div>
+            </div>
+            
+    </div>
+</body>
+</html>
