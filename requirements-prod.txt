@@ -113,7 +113,7 @@ azure-storage-blob==12.19.0
 google-cloud-storage==3.2.0
 
 # Container and Deployment
-gunicorn==21.2.0
+gunicorn==23.0.0
 gevent==23.9.1
 
 # Development and Testing (optional in prod)
