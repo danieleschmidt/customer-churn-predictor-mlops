@@ -150,7 +150,7 @@ statsmodels==0.14.0
 prophet==1.1.4
 
 # Natural Language Processing (if needed)
-nltk==3.8.1
+nltk==3.9.1
 spacy==3.8.7
 
 # API Documentation
