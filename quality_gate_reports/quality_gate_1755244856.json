@@ -1,0 +1,123 @@
+{
+  "report_id": "quality_gate_1755244856",
+  "timestamp": "2025-08-15 08:00:56.977374",
+  "project_name": "repo",
+  "branch": "terragon/autonomous-sdlc-execution-v4-o8nvai",
+  "commit_hash": "9e60264d",
+  "gate_results": [
+    {
+      "gate_name": "code_quality",
+      "status": "GateStatus.PASSED",
+      "severity": "GateSeverity.WARNING",
+      "score": 0.0,
+      "threshold": 80.0,
+      "message": "Code quality gate passed",
+      "details": {
+        "tool_results": {
+          "flake8": {
+            "success": false,
+            "error": "flake8 not installed",
+            "score": 0,
+            "issues": []
+          },
+          "black": {
+            "success": false,
+            "error": "black not installed",
+            "score": 0,
+            "issues": []
+          },
+          "mypy": {
+            "success": false,
+            "error": "mypy not installed",
+            "score": 0,
+            "issues": []
+          },
+          "bandit": {
+            "success": false,
+            "error": "bandit not installed",
+            "score": 0,
+            "issues": []
+          },
+          "isort": {
+            "success": false,
+            "error": "isort not installed",
+            "score": 0,
+            "issues": []
+          }
+        },
+        "total_issues": 0,
+        "blocking_issues": 0,
+        "warning_issues": 0,
+        "tools_run": [
+          "flake8",
+          "black",
+          "mypy",
+          "bandit",
+          "isort"
+        ]
+      },
+      "execution_time_seconds": 0.0030248165130615234,
+      "timestamp": "2025-08-15 08:00:56.987638",
+      "recommendations": [
+        "Code quality is good - consider enabling more strict checks"
+      ]
+    },
+    {
+      "gate_name": "test_quality",
+      "status": "GateStatus.FAILED",
+      "severity": "GateSeverity.BLOCKING",
+      "score": 0.0,
+      "threshold": 80.0,
+      "message": "Test pass rate (0.0%) below threshold (95.0%)",
+      "details": {
+        "error": "[Errno 2] No such file or directory: 'python'",
+        "pass_rate": 0,
+        "coverage": 0
+      },
+      "execution_time_seconds": 0.0005955696105957031,
+      "timestamp": "2025-08-15 08:00:56.988280",
+      "recommendations": [
+        "Increase test coverage by 85.0%",
+        "Add test cases - no tests found"
+      ]
+    },
+    {
+      "gate_name": "security",
+      "status": "GateStatus.FAILED",
+      "severity": "GateSeverity.BLOCKING",
+      "score": 75,
+      "threshold": 80.0,
+      "message": "Security gate failed: 0 critical vulnerabilities, 1 secrets",
+      "details": {
+        "dependency_scan": {
+          "error": "safety not installed",
+          "vulnerabilities": 0
+        },
+        "secrets_scan": {
+          "secrets_found": 1,
+          "details": [
+            {
+              "file": "tests/test_advanced_security.py",
+              "line": 537,
+              "type": "password",
+              "value": "weak"
+            }
+          ]
+        },
+        "total_vulnerabilities": 0
+      },
+      "execution_time_seconds": 0.503166675567627,
+      "timestamp": "2025-08-15 08:00:57.491482",
+      "recommendations": [
+        "Remove hardcoded secrets and use environment variables",
+        "Consider using a secrets management system"
+      ]
+    }
+  ],
+  "overall_status": "GateStatus.FAILED",
+  "overall_score": 25.0,
+  "blocking_failures": 2,
+  "warnings": 0,
+  "deployment_approved": false,
+  "summary": "Quality gates failed with 2 blocking issues. Deployment blocked until issues are resolved.\n\nGate Scores: code_quality: 0%, test_quality: 0%, security: 75%"
+}
