@@ -100,7 +100,7 @@ pyarrow==21.0.0
 
 # Image Processing (if needed)
 pillow==11.3.0
-opencv-python-headless==4.8.1.78
+opencv-python-headless==4.12.0.88
 
 # Scientific Computing
 matplotlib==3.8.2
