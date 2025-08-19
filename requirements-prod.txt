@@ -84,7 +84,7 @@ joblib==1.5.1
 
 # Utilities
 python-dateutil==2.9.0.post0
-pytz==2023.3
+pytz==2025.2
 tqdm==4.67.1
 rich==14.1.0
 
