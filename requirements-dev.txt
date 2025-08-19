@@ -18,7 +18,7 @@ mutmut==3.3.1
 
 # Documentation
 mkdocs==1.6.1
-mkdocs-material==9.6.16
+mkdocs-material==9.6.17
 mkdocs-mermaid2-plugin==1.2.1
 
 # API Testing
