@@ -110,7 +110,7 @@ plotly==6.3.0
 # Cloud Storage
 boto3==1.40.12
 azure-storage-blob==12.19.0
-google-cloud-storage==3.2.0
+google-cloud-storage==3.3.0
 
 # Container and Deployment
 gunicorn==23.0.0
