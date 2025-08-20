@@ -33,7 +33,7 @@ cryptography==45.0.6
 PyJWT==2.9.0
 sqlparse==0.5.3
 seaborn==0.13.2
-matplotlib==3.9.2
+matplotlib==3.10.5
 jinja2==3.1.6
 testcontainers==4.12.0
 faker==37.5.3
