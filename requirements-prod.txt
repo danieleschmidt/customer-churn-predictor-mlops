@@ -25,7 +25,7 @@ optuna==4.5.0
 
 # Feature Engineering
 feature-engine==1.8.3
-category-encoders==2.6.3
+category-encoders==2.8.1
 imbalanced-learn==0.14.0
 
 # Database
