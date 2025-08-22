@@ -134,7 +134,7 @@ orjson==3.11.2
 msgpack==1.0.7
 
 # Async Support
-asyncio==3.4.3
+asyncio==4.0.0
 aiofiles==23.2.1
 asyncpg==0.30.0
 
