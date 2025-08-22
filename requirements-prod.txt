@@ -155,7 +155,7 @@ spacy==3.8.7
 
 # API Documentation
 sphinx==7.2.6
-sphinx-rtd-theme==2.0.0
+sphinx-rtd-theme==3.0.2
 
 # Production WSGI Server
 waitress==2.1.2
