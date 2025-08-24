@@ -1,0 +1,134 @@
+{
+  "overall_status": "NEEDS_IMPROVEMENT",
+  "summary": {
+    "total_gates": 10,
+    "passed_gates": 1,
+    "failed_gates": 9,
+    "pass_rate": 10.0,
+    "average_score": 9.921104536489151,
+    "duration_seconds": 0.03451
+  },
+  "results_by_category": {
+    "critical_failures": [
+      "code_formatting",
+      "import_sorting",
+      "linting",
+      "security_scan",
+      "unit_tests",
+      "code_coverage",
+      "integration_tests",
+      "performance_benchmark",
+      "advanced_ml_components"
+    ],
+    "warnings": [],
+    "successes": [
+      "documentation"
+    ]
+  },
+  "detailed_results": [
+    {
+      "name": "code_formatting",
+      "passed": false,
+      "score": 0.0,
+      "details": {
+        "error": "[Errno 2] No such file or directory: 'python'"
+      },
+      "timestamp": "2025-08-24T15:32:05.609034"
+    },
+    {
+      "name": "import_sorting",
+      "passed": false,
+      "score": 0.0,
+      "details": {
+        "error": "[Errno 2] No such file or directory: 'python'"
+      },
+      "timestamp": "2025-08-24T15:32:05.609957"
+    },
+    {
+      "name": "linting",
+      "passed": false,
+      "score": 0.0,
+      "details": {
+        "error": "[Errno 2] No such file or directory: 'python'"
+      },
+      "timestamp": "2025-08-24T15:32:05.610763"
+    },
+    {
+      "name": "security_scan",
+      "passed": false,
+      "score": 0.0,
+      "details": {
+        "error": "[Errno 2] No such file or directory: 'python'"
+      },
+      "timestamp": "2025-08-24T15:32:05.612589"
+    },
+    {
+      "name": "unit_tests",
+      "passed": false,
+      "score": 0.0,
+      "details": {
+        "error": "[Errno 2] No such file or directory: 'python'"
+      },
+      "timestamp": "2025-08-24T15:32:05.614302"
+    },
+    {
+      "name": "code_coverage",
+      "passed": false,
+      "score": 0.0,
+      "details": {
+        "error": "[Errno 2] No such file or directory: 'python'"
+      },
+      "timestamp": "2025-08-24T15:32:05.614309"
+    },
+    {
+      "name": "integration_tests",
+      "passed": false,
+      "score": 0.0,
+      "details": {
+        "error": "[Errno 2] No such file or directory: 'python'"
+      },
+      "timestamp": "2025-08-24T15:32:05.615183"
+    },
+    {
+      "name": "performance_benchmark",
+      "passed": false,
+      "score": 0.0,
+      "details": {
+        "error": "name 'training_time' is not defined"
+      },
+      "timestamp": "2025-08-24T15:32:05.615336"
+    },
+    {
+      "name": "documentation",
+      "passed": true,
+      "score": 99.21104536489152,
+      "details": {
+        "missing_files": [],
+        "docstring_coverage": 99.21104536489152,
+        "required_docs_present": 5
+      },
+      "timestamp": "2025-08-24T15:32:05.637586"
+    },
+    {
+      "name": "advanced_ml_components",
+      "passed": false,
+      "score": 0.0,
+      "details": {
+        "ensemble_engine": false,
+        "explainable_ai": false,
+        "quantum_ml": false,
+        "enterprise_platform": false
+      },
+      "timestamp": "2025-08-24T15:32:05.641418"
+    }
+  ],
+  "recommendations": [
+    "Run 'python -m black src/ tests/ scripts/' to fix code formatting",
+    "Address linting issues with 'python -m flake8 src/ tests/ scripts/'",
+    "Review and fix security vulnerabilities identified by Bandit",
+    "Increase test coverage by adding more unit tests",
+    "Fix failing unit tests before deployment",
+    "Optimize performance-critical code paths"
+  ],
+  "timestamp": "2025-08-24T15:32:05.641426"
+}
