@@ -52,7 +52,7 @@ aiohttp==3.12.15
 # Monitoring and Observability
 prometheus-client==0.22.1
 opentelemetry-api==1.36.0
-opentelemetry-sdk==1.21.0
+opentelemetry-sdk==1.36.0
 opentelemetry-instrumentation-fastapi==0.57b0
 opentelemetry-instrumentation-sqlalchemy==0.57b0
 opentelemetry-instrumentation-redis==0.42b0
