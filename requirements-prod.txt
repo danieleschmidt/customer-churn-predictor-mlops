@@ -108,7 +108,7 @@ seaborn==0.13.2
 plotly==6.3.0
 
 # Cloud Storage
-boto3==1.40.14
+boto3==1.40.16
 azure-storage-blob==12.26.0
 google-cloud-storage==3.3.0
 
