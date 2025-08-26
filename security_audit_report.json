@@ -1,0 +1,81 @@
+{
+  "timestamp": 1756210194.6400175,
+  "total_files_scanned": 69,
+  "findings": [
+    {
+      "severity": "medium",
+      "category": "Container Security",
+      "title": "Running as Root User",
+      "description": "Dockerfile runs processes as root user",
+      "file_path": "Dockerfile",
+      "line_number": null,
+      "cve_id": null,
+      "recommendation": "Use non-root user for container processes"
+    },
+    {
+      "severity": "medium",
+      "category": "File Security",
+      "title": "World-Readable Sensitive File",
+      "description": "File config.yml is readable by all users",
+      "file_path": "config.yml",
+      "line_number": null,
+      "cve_id": null,
+      "recommendation": "Restrict file permissions to owner only"
+    },
+    {
+      "severity": "high",
+      "category": "API Security",
+      "title": "Weak API Key Length",
+      "description": "API keys should be at least 16 characters",
+      "file_path": null,
+      "line_number": null,
+      "cve_id": null,
+      "recommendation": "Use longer API keys with sufficient entropy"
+    }
+  ],
+  "dependency_vulnerabilities": [
+    {
+      "package": "Flask",
+      "version": "3.1.2",
+      "severity": "medium",
+      "description": "Potential vulnerability in Flask",
+      "recommendation": "Update to latest version"
+    },
+    {
+      "package": "Jinja2",
+      "version": "3.1.6",
+      "severity": "medium",
+      "description": "Potential vulnerability in Jinja2",
+      "recommendation": "Update to latest version"
+    },
+    {
+      "package": "PyYAML",
+      "version": "6.0.2",
+      "severity": "medium",
+      "description": "Potential vulnerability in PyYAML",
+      "recommendation": "Update to latest version"
+    },
+    {
+      "package": "requests",
+      "version": "2.32.5",
+      "severity": "medium",
+      "description": "Potential vulnerability in requests",
+      "recommendation": "Update to latest version"
+    },
+    {
+      "package": "urllib3",
+      "version": "2.5.0",
+      "severity": "medium",
+      "description": "Potential vulnerability in urllib3",
+      "recommendation": "Update to latest version"
+    }
+  ],
+  "secret_exposures": [],
+  "compliance_status": {
+    "OWASP_Top_10": true,
+    "PCI_DSS": true,
+    "SOC2": false,
+    "GDPR": false
+  },
+  "security_score": 69.0
+}
