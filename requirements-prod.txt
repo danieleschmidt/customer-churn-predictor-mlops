@@ -140,7 +140,7 @@ asyncpg==0.30.0
 
 # ML Model Serving
 mlflow==3.3.1
-bentoml==1.4.21
+bentoml==1.4.22
 
 # Graph and Network Analysis
 networkx==3.5
