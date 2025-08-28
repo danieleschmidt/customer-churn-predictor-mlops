@@ -24,7 +24,7 @@ catboost==1.2.8
 optuna==4.5.0
 
 # Feature Engineering
-feature-engine==1.8.3
+feature-engine==1.9.0
 category-encoders==2.8.1
 imbalanced-learn==0.14.0
 
