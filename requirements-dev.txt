@@ -19,7 +19,7 @@ mutmut==3.3.1
 # Documentation
 mkdocs==1.6.1
 mkdocs-material==9.6.18
-mkdocs-mermaid2-plugin==1.2.1
+mkdocs-mermaid2-plugin==1.2.2
 
 # API Testing
 postman-collection-runner==1.0.0
