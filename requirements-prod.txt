@@ -31,7 +31,7 @@ imbalanced-learn==0.14.0
 # Database
 sqlalchemy==2.0.43
 psycopg2-binary==2.9.10
-alembic==1.16.4
+alembic==1.16.5
 
 # Caching and Session Storage
 redis==6.4.0
