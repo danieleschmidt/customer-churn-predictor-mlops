@@ -1,9 +1,9 @@
 # Development dependencies
-pytest==8.4.1
+pytest==8.4.2
 pytest-cov==6.2.1
 pytest-asyncio==1.1.0
 pytest-xdist==3.8.0
-pytest-mock==3.14.1
+pytest-mock==3.15.0
 black==25.1.0
 flake8==7.3.0
 mypy==1.17.1
@@ -12,8 +12,8 @@ pre-commit==4.3.0
 safety==3.6.0
 bandit==1.8.6
 isort==6.0.1
-coverage==7.10.5
-locust==2.39.0
+coverage==7.10.6
+locust==2.39.1
 mutmut==3.3.1
 
 # Documentation
