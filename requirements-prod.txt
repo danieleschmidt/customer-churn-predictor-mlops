@@ -1,9 +1,9 @@
 # Production ML System Requirements
 
 # Core Framework
-fastapi==0.116.1
+fastapi==0.116.2
 uvicorn[standard]==0.35.0
-pydantic==2.11.7
+pydantic==2.11.9
 pydantic-settings==2.10.1
 
 # Machine Learning Core
